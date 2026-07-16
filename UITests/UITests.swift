@@ -110,12 +110,23 @@ class UITests: XCTestCase {
         live.tap()
 
         // Keep the app in this state so it can be sampled
-        sleep(25)
+        sleep(10)
 
         // If the main thread froze, this will fail
         let solid = app.buttons["Solid"].firstMatch
         XCTAssertTrue(solid.isHittable, "UI is not hittable after enabling Live previews")
+
+        // Cycle the previews in and out: destroying the preview views used to
+        // crash with a use-after-free in MetalHostView.deinit
+        for _ in 0..<3 {
+            solid.tap()
+            sleep(2)
+            app.buttons["Live"].firstMatch.tap()
+            sleep(2)
+        }
         solid.tap()
+        sleep(3)
+        XCTAssertTrue(app.buttons["Live"].firstMatch.isHittable, "UI died after cycling Live previews")
     }
 
     func testLaunchPerformance() throws {

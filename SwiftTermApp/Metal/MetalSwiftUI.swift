@@ -31,14 +31,20 @@ class MetalHostView: UIView {
     }
 
     deinit {
-        DispatchQueue.main.async {
-            self.metal.stopRunning()
+        // Never capture `self` here: the async block runs after this view is
+        // deallocated and resurrecting it is a use-after-free (EXC_BAD_ACCESS
+        // when the Live previews were dismissed).  Capturing the MetalHost
+        // keeps it alive just long enough to stop its display link.
+        if let metal = metal {
+            DispatchQueue.main.async {
+                metal.stopRunning()
+            }
         }
     }
-    
+
     public override var frame: CGRect {
         didSet {
-            metal.target.frame = frame
+            metal?.target.frame = frame
         }
     }
 }
