@@ -13,7 +13,16 @@ import CloudKit
 
 class DataController: ObservableObject {
     let container: NSPersistentCloudKitContainer
-    
+
+    /// Set to true to sync the "Cloud" store through CloudKit.  This requires the
+    /// iCloud/CloudKit + Push Notifications capabilities in SwiftTermApp.entitlements
+    /// with a container identifier owned by your team (personal development teams can
+    /// not use these capabilities).  When false, the store stays on-device and
+    /// CloudKit is never touched.
+    static let cloudKitSyncEnabled = false
+    static let cloudKitContainerIdentifier = "iCloud.org.tirania.SwiftTermKeys"
+
+
     init(inMemory: Bool = false) {
         // Since we have a local database, and a cloud-synced database, the following set these up.
         // https://developer.apple.com/documentation/coredata/mirroring_a_core_data_store_with_cloudkit/setting_up_core_data_with_cloudkit
@@ -35,11 +44,13 @@ class DataController: ObservableObject {
         localStoreDescription.configuration = "Local"
 
         let cloudStoreDescription = NSPersistentStoreDescription(url: getLocation ("cloud.sqlite"))
-        
-        let cloudOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: "iCloud.org.tirania.SwiftTermKeys")
-        cloudOptions.databaseScope = .private
+
         cloudStoreDescription.configuration = "Cloud"
-        cloudStoreDescription.cloudKitContainerOptions = cloudOptions
+        if DataController.cloudKitSyncEnabled {
+            let cloudOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: DataController.cloudKitContainerIdentifier)
+            cloudOptions.databaseScope = .private
+            cloudStoreDescription.cloudKitContainerOptions = cloudOptions
+        }
         cloudStoreDescription.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
         cloudStoreDescription.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
 
