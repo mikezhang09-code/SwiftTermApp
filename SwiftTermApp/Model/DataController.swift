@@ -49,9 +49,28 @@ class DataController: ObservableObject {
             localStoreDescription
         ]
         
+        // The completion handler runs synchronously for file-backed stores.  If the
+        // store with CloudKit mirroring fails to load (for example: builds signed by
+        // a personal development team can not use the iCloud entitlement), fall back
+        // to using it as a plain local store - everything works, minus cloud sync.
+        var failedCloudStore: NSPersistentStoreDescription? = nil
         container.loadPersistentStores { storeDescription, error in
-            if let error = error {
-                fatalError("Fatal error loading store: \(error.localizedDescription)")
+            if error != nil {
+                if storeDescription.cloudKitContainerOptions != nil {
+                    failedCloudStore = storeDescription
+                } else {
+                    fatalError("Fatal error loading store: \(error!.localizedDescription)")
+                }
+            }
+        }
+        if let retryStore = failedCloudStore {
+            print ("CloudKit mirroring unavailable, falling back to a local store without sync")
+            retryStore.cloudKitContainerOptions = nil
+            container.persistentStoreDescriptions = [retryStore]
+            container.loadPersistentStores { storeDescription, error in
+                if let error = error {
+                    fatalError("Fatal error loading store: \(error.localizedDescription)")
+                }
             }
         }
         container.viewContext.automaticallyMergesChangesFromParent = true
