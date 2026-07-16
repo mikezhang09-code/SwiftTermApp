@@ -193,9 +193,11 @@ class Session: CustomDebugStringConvertible, Equatable {
         func confirmHostAuthUnknown (hostKeyType: String, key: [Int8], fingerprint: String, knownHosts: LibsshKnownHost, host: Host) async -> Bool {
             let ok: Bool = await withCheckedContinuation { c in
                 guard let parent = getParentViewController (hint: delegate.getResponder()) else {
+                    self.logConnection ("SSH: cannot present host verification dialog, no parent view controller")
                     c.resume(returning: false)
                     return
                 }
+                self.logConnection ("SSH: prompting user to verify unknown host key (parent: \(type (of: parent)))")
                 
                 var window: UIHostingController<HostAuthUnknown>!
                 window = UIHostingController<HostAuthUnknown>(rootView: HostAuthUnknown(alias: self.host.alias, hostString: getHostName(host: host), fingerprint: fingerprint, cancelCallback: {
@@ -254,6 +256,7 @@ class Session: CustomDebugStringConvertible, Equatable {
 
         switch res.status {
         case .notFound, .failure:
+            logConnection ("SSH: host key not found in known_hosts (\(res.status)), asking user to confirm")
             if await confirmHostAuthUnknown(hostKeyType: hostKeyType, key: keyAndType.key, fingerprint: await getFingerPrint(), knownHosts: knownHosts, host: host) {
                 return true
             }
@@ -265,6 +268,7 @@ class Session: CustomDebugStringConvertible, Equatable {
             await disconnect(description: "Known host key mismatch")
             return false
         case .match:
+            logConnection ("SSH: host key matches known_hosts")
             // We are good!
             return true
         }
@@ -296,6 +300,7 @@ class Session: CustomDebugStringConvertible, Equatable {
     
     let messageManager: MessageManager = MessageManager ()
     nonisolated func logConnection (_ msg: String) {
+        print ("[connlog] \(msg)")
         messageManager.log(msg)
     }
 
@@ -487,6 +492,7 @@ class Session: CustomDebugStringConvertible, Equatable {
             return
         }
         banner = await sessionActor.getBanner ()
+        logConnection ("SSH: handshake completed, server banner: \(banner)")
         if await !checkHostIntegrity () {
             logConnection ("SSH: Host integrity failed")
             return 
