@@ -242,31 +242,32 @@ class Session: CustomDebugStringConvertible, Equatable {
         }
         
         let _ = await knownHosts.readFile (filename: DataStore.shared.knownHostsPath)
-        
-        if let keyAndType = await hostKey() {
-            let res = knownHosts.check (hostName: host.hostname, port: Int32 (host.port), key: keyAndType.key)
-            let hostKeyType = SshUtil.keyTypeName (keyAndType.type)
-            
-//            var k: KnownHostStatus = .keyMismatch
-//            switch k {
-            switch res.status {
-            case .notFound, .failure:
-                if await confirmHostAuthUnknown(hostKeyType: hostKeyType, key: keyAndType.key, fingerprint: await getFingerPrint(), knownHosts: knownHosts, host: host) {
-                    return true
-                }
-                await disconnect(description: "User did not accept this host")
-                return false
 
-            case .keyMismatch:
-                await showHostKeyMismatch (fingerprint: await getFingerPrint())
-                await disconnect(description: "Known host key mismatch")
-                return false
-            case .match:
-                // We are good!
-                break
-            }
+        guard let keyAndType = await hostKey() else {
+            // Fail closed: without a host key we cannot verify who we are talking to
+            logConnection ("SSH: unable to obtain the remote host key, refusing to continue")
+            await disconnect(description: "Unable to obtain the remote host key")
+            return false
         }
-        return true
+        let res = knownHosts.check (hostName: host.hostname, port: Int32 (host.port), key: keyAndType.key)
+        let hostKeyType = SshUtil.keyTypeName (keyAndType.type)
+
+        switch res.status {
+        case .notFound, .failure:
+            if await confirmHostAuthUnknown(hostKeyType: hostKeyType, key: keyAndType.key, fingerprint: await getFingerPrint(), knownHosts: knownHosts, host: host) {
+                return true
+            }
+            await disconnect(description: "User did not accept this host")
+            return false
+
+        case .keyMismatch:
+            await showHostKeyMismatch (fingerprint: await getFingerPrint())
+            await disconnect(description: "Known host key mismatch")
+            return false
+        case .match:
+            // We are good!
+            return true
+        }
     }
     
     /// Connection Logging
@@ -303,6 +304,18 @@ class Session: CustomDebugStringConvertible, Equatable {
     /// - Parameter session: identifies the session that this callback is for
     /// - Returns: nil on success, or a human-readable description as a string on error
     func authenticate () async -> String? {
+        // Resolve the username first: every authentication method below must use
+        // the value the user was prompted for, not the (possibly empty) host value
+        let user: String
+        if host.username == "" {
+            guard let vc = await getParentViewController (hint: delegate.getResponder()) else {
+                return "Unable to prompt for the username from the background"
+            }
+            user = Dialogs.user(vc: vc)
+        } else {
+            user = host.username
+        }
+
         @Sendable func loginWithKey (_ sshKey: Key) async -> String? {
             switch sshKey.type {
             case .rsa(_), .ecdsa(inEnclave: false):
@@ -317,13 +330,13 @@ class Session: CustomDebugStringConvertible, Equatable {
                     password = sshKey.passphrase
                 }
                 
-                return await userAuthPublicKeyFromMemory (username: host.username,
+                return await userAuthPublicKeyFromMemory (username: user,
                                                           passPhrase: password,
                                                           publicKey: sshKey.publicKey,
                                                           privateKey: sshKey.privateKey)
             case .ecdsa(inEnclave: true):
                 if let keyHandle = sshKey.getKeyHandle() {
-                    return await userAuthWithCallback(username: host.username, publicKey: sshKey.getPublicKeyAsData()) { dataToSign in
+                    return await userAuthWithCallback(username: user, publicKey: sshKey.getPublicKeyAsData()) { dataToSign in
                         var error: Unmanaged<CFError>?
                         guard let signed = SecKeyCreateSignature(keyHandle, .ecdsaSignatureMessageX962SHA256, dataToSign as CFData, &error) else {
                             return nil
@@ -336,15 +349,7 @@ class Session: CustomDebugStringConvertible, Equatable {
             }
         }
         
-        var user = host.username
-        if user == "" {
-            guard let vc = await getParentViewController (hint: delegate.getResponder()) else {
-                return "Unable to prompt for the username from the background"
-            }
-            user = Dialogs.user(vc: vc)
-        }
-        
-        let authMethods = await userAuthenticationList(username: host.username)
+        let authMethods = await userAuthenticationList(username: user)
         logConnection("SSH: got \(authMethods)")
         if authMethods == "" {
             return nil
@@ -357,7 +362,7 @@ class Session: CustomDebugStringConvertible, Equatable {
         if authMethods.contains("publickey") && host.sshKey != nil {
             
             let keyRequest = CKey.fetchRequest()
-            keyRequest.predicate = NSPredicate (format: "sId == \"\(host.sshKey!)\"")
+            keyRequest.predicate = NSPredicate (format: "sId == %@", host.sshKey!.uuidString)
         
             let keys = try? await viewContext.perform {
                 return try viewContext.fetch(keyRequest).map { $0.toMemoryKey () }
@@ -402,7 +407,7 @@ class Session: CustomDebugStringConvertible, Equatable {
             }
             if let password = password {
                 logConnection("SSH: attempting authentication with password")
-                if let error = await userAuthPassword (username: host.username, password: password) {
+                if let error = await userAuthPassword (username: user, password: password) {
                     logConnection("SSH: authentication error \(error)")
                     cumulativeErrors.append (error)
                 } else {
@@ -416,7 +421,7 @@ class Session: CustomDebugStringConvertible, Equatable {
             // Fetch the keys, but we do not need the one that we tried early on (host.sshKey, so we are going to skip that one)
             let keyRequest = CKey.fetchRequest()
             if let explicitKey = host.sshKey {
-                keyRequest.predicate = NSPredicate (format: "sId != \"\(explicitKey)\"")
+                keyRequest.predicate = NSPredicate (format: "sId != %@", explicitKey.uuidString)
             }
             let keys = try? await viewContext.perform {
                 return try viewContext.fetch(keyRequest).map { $0.toMemoryKey () }
@@ -449,7 +454,7 @@ class Session: CustomDebugStringConvertible, Equatable {
             }
             let dialog = Dialogs (parentVC: vc)
             
-            if let error = await userAuthKeyboardInteractive(username: host.username, prompt: dialog.passwordPrompt(challenge:)) {
+            if let error = await userAuthKeyboardInteractive(username: user, prompt: dialog.passwordPrompt(challenge:)) {
                 logConnection("SSH: authentication error \(error)")
                 
                 cumulativeErrors.append(error)
