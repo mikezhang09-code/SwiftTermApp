@@ -392,22 +392,37 @@ actor SessionActor {
     public func ping (channel: Channel, eofDetected: inout Bool) async -> (Data?, Data?)? {
         // standard channel
         let channelHandle = channel.channelHandle
-        let streamId: Int32 = 0
-        var ret, retError: Int
         let bufferSize = channel.bufferSize
-        ret = libssh2_channel_read_ex (channelHandle, streamId, channel.buffer, bufferSize)
-        retError = libssh2_channel_read_ex (channelHandle, SSH_EXTENDED_DATA_STDERR, channel.bufferError, bufferSize)
+        var data: Data? = nil
+        var error: Data? = nil
+
+        // Drains one stream until libssh2 reports EAGAIN (no more buffered data) or EOF,
+        // copying out of the reusable channel buffer: the returned Data outlives this
+        // call, and the buffer is overwritten by the next read.
+        func drain (streamId: Int32, buffer: UnsafeMutablePointer<Int8>, into accumulator: inout Data?) {
+            while true {
+                let ret = libssh2_channel_read_ex (channelHandle, streamId, buffer, bufferSize)
+                if ret < 0 {
+                    // EAGAIN or a real error: either way there is nothing more to read now
+                    return
+                }
+                if accumulator == nil {
+                    accumulator = Data ()
+                }
+                accumulator?.append (contentsOf: UnsafeRawBufferPointer (start: buffer, count: ret))
+                if ret == 0 {
+                    return
+                }
+            }
+        }
+        drain (streamId: 0, buffer: channel.buffer, into: &data)
+        drain (streamId: SSH_EXTENDED_DATA_STDERR, buffer: channel.bufferError, into: &error)
         eofDetected = libssh2_channel_eof(channelHandle) != 0
-        //print ("Ping on channel got \(ret) bytes")
-        let data = ret >= 0 ? Data (bytesNoCopy: channel.buffer, count: ret, deallocator: .none) : nil
-        let error = retError >= 0 ? Data (bytesNoCopy: channel.bufferError, count: retError, deallocator: .none) : nil
-        //if ret >= 0 { dump (data!) }
-        if ret >= 0 || retError >= 0 {
+        if data != nil || error != nil {
             return (data, error)
         } else {
             return nil
         }
-
     }
     public func processStartup (channel: Channel, request: String, message: String?) async -> Int32 {
         return await callSsh {

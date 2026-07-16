@@ -47,34 +47,29 @@ public class SshTerminalView: AppTerminalView, TerminalViewDelegate, SessionDele
     // we start to output diagnostics on the connection
     var started: Date
 
-    nonisolated func channelReader (channel: Channel, data: Data?, error: Data?, eof: Bool) {
+    // Called from the session channel pump, which awaits each delivery: feeding in
+    // chunks on the main actor keeps rendering responsive without blocking a
+    // cooperative-pool thread the way DispatchQueue.main.sync did.
+    nonisolated func channelReader (channel: Channel, data: Data?, error: Data?, eof: Bool) async {
         if let d = data {
             let sliced = Array(d) [0...]
-
-            #if false
-            // Process in one go, but results in ugly and slow rendering
-            DispatchQueue.main.sync {
-                self.feed(byteArray: sliced)
-            }
-            #else
             let blocksize = 1024
             var next = 0
             let last = sliced.endIndex
-            
+
             while next < last {
-                
+
                 let end = min (next+blocksize, last)
                 let chunk = sliced [next..<end]
-            
-                DispatchQueue.main.sync {
+
+                await MainActor.run {
                     self.feed(byteArray: chunk)
                 }
                 next = end
             }
-            #endif
         }
         if eof {
-            DispatchQueue.main.async {
+            await MainActor.run {
                 self.connectionClosed (receivedEOF: true)
             }
         }

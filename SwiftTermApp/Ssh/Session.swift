@@ -64,9 +64,17 @@ class Session: CustomDebugStringConvertible, Equatable {
 
     // Lock controlling access to the channels array
     var channelsLock = NSLock ()
-    
+
     // use channelsLock to access: Tracks all channels, used to notify them that data is available
     var channels: [Channel] = []
+
+    // Lock controlling access to pumpRunning/pumpPending
+    var pumpLock = NSLock ()
+
+    // use pumpLock to access: whether a channel-pump task is currently draining the channels,
+    // and whether new data arrived while it was draining (so it must run another round)
+    var pumpRunning = false
+    var pumpPending = false
     
     // Lock controlling access to the terminals array
     var terminalsLock = NSLock ()
@@ -904,9 +912,8 @@ class SocketSession: Session {
             self.bufferLock.unlock()
             
             // TODO: maybe we do not need PingChannels, we can merge with pingtasks?
-            sshQueue.async {
-                self.pingChannels ()
-            }
+            // pingChannels only flips the coalescing pump flags, safe to call from the network queue
+            self.pingChannels ()
             Task { await self.sessionActor.pingTasks() }
             
             if restart {
@@ -923,36 +930,48 @@ class SocketSession: Session {
     
     // Since libssh2 does not provide a callback/completion system per channel, we inform
     // all registered channels that new data is available, so they can pull and process.
+    //
+    // At most one pump task drains the channels at any time: reads and readCallback
+    // deliveries must happen strictly in order, or the terminal renders interleaved
+    // chunks (this was the source of the data corruption with large outputs).  Calls
+    // that arrive while a pump is running coalesce into one more round of the loop.
     func pingChannels () {
+        pumpLock.lock ()
+        pumpPending = true
+        if pumpRunning {
+            pumpLock.unlock ()
+            return
+        }
+        pumpRunning = true
+        pumpLock.unlock ()
+
         Task {
-            // This lock is taken for too long over the iteration of the contents of channel
-            // in the future, we could track which channels are dead, and then remove the
-            // channels from channels, rather than the old race condition where the value
-            // of channels would be overwritten with the new result of "active", when a
-            // background thread might have added a new Channel, killing it in the process
-            channelsLock.lock()
-            let copy = channels
-            channelsLock.unlock()
-            var removeList: [Channel] = []
-            
-            for channel in copy {
-                if await !channel.ping () {
-                    removeList.append (channel)
+            while true {
+                pumpLock.lock ()
+                if !pumpPending {
+                    pumpRunning = false
+                    pumpLock.unlock ()
+                    return
                 }
-            }
-            channelsLock.lock ()
-            if removeList.count > 0 {
-                let currentCopy = channels
-                channels = []
-                for channel in currentCopy {
-                    if removeList.contains (channel) {
-                        // Do not add
-                    } else {
-                        channels.append (channel)
+                pumpPending = false
+                pumpLock.unlock ()
+
+                channelsLock.lock()
+                let copy = channels
+                channelsLock.unlock()
+                var removeList: [Channel] = []
+
+                for channel in copy {
+                    if await !channel.ping () {
+                        removeList.append (channel)
                     }
                 }
+                if removeList.count > 0 {
+                    channelsLock.lock ()
+                    channels.removeAll { channel in removeList.contains (channel) }
+                    channelsLock.unlock()
+                }
             }
-            channelsLock.unlock()
         }
     }
        

@@ -44,12 +44,15 @@ public class Channel: Equatable {
     }
     
     deinit {
-        let s = sessionActor!
-        let t = channelHandle
         buffer.deallocate()
         bufferError.deallocate()
-        Task {
-            await s.free (channelHandle: t)
+        // sessionActor is weak: if the actor is already gone, libssh2 tore the
+        // session (and its channels) down with it, so there is nothing to free
+        if let s = sessionActor {
+            let t = channelHandle
+            Task {
+                await s.free (channelHandle: t)
+            }
         }
     }
 
