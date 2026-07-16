@@ -1251,10 +1251,10 @@
 		};
 		4928BDE927BF09BE00C180E6 /* XCRemoteSwiftPackageReference "Libssh2Prebuild" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/migueldeicaza/Libssh2Prebuild";
+			repositoryURL = "https://github.com/DimaRU/Libssh2Prebuild";
 			requirement = {
-				branch = master;
-				kind = branch;
+				kind = exactVersion;
+				version = "1.11.0-OpenSSL-1-1-1w";
 			};
 		};
 		49C1B6AD24625C7D00D54F6F /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {

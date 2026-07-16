@@ -1,13 +1,13 @@
 {
-  "originHash" : "a4c2a32179c9822843712c270ba07bdff6b32e1ee647daff102880a7eb0d9cce",
+  "originHash" : "adb5f82a7c811c2bfb7bdefbd6264879cee8d0419b642f6990d2a827605f10a2",
   "pins" : [
     {
       "identity" : "libssh2prebuild",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/migueldeicaza/Libssh2Prebuild",
+      "location" : "https://github.com/DimaRU/Libssh2Prebuild",
       "state" : {
-        "branch" : "master",
-        "revision" : "2b9a34880aa7906a76872ac03077ea5aa313c72b"
+        "revision" : "56e4285f64a34f543cba5d40805537ac927f9723",
+        "version" : "1.11.0-OpenSSL-1-1-1w"
       }
     },
     {
