@@ -122,7 +122,12 @@ struct ConfigurableUITerminal: View {
                     }
                 }
             }
-            .sheet (isPresented: $showConfig) {
+            .sheet (isPresented: $showConfig, onDismiss: {
+                // Give the keyboard back to the terminal, the sheet took it away
+                if let visible = TerminalViewController.visibleTerminal {
+                    _ = visible.becomeFirstResponder()
+                }
+            }) {
                 RunningTerminalConfig (host: terminalView?.host ?? host!, showingModal: $showConfig)
             }
             .sheet (isPresented: $showCommand) {

@@ -36,6 +36,15 @@ public class MetalHost {
     var startTime, time, deltaTime: CFTimeInterval
     var uniformsBuffer: MTLBuffer
     var fragmentName: String
+
+    // Rendering happens on this queue: nextDrawable() can block for up to a
+    // second when the GPU is behind, and doing that on the main thread makes
+    // the whole UI unresponsive (very visible with heavy shaders on the
+    // simulator).  The lock guards frameInFlight, which drops display-link
+    // ticks while a frame is still being rendered.
+    let renderQueue = DispatchQueue (label: "metalhost.render", qos: .userInteractive)
+    let frameLock = NSLock ()
+    var frameInFlight = false
     
     /// These are the Shadertoy-like uniforms
     struct Uniforms {
@@ -151,6 +160,8 @@ public class MetalHost {
     {
         if displayLink == nil {
             displayLink = CADisplayLink (target: self, selector: #selector(tick(from:)))
+            // Backgrounds are decorative, 60fps is plenty even on ProMotion displays
+            displayLink?.preferredFramesPerSecond = 60
             displayLink?.add(to: .main, forMode: .common)
         }
     }
@@ -173,14 +184,14 @@ public class MetalHost {
         return false
     }
     
-    func redraw()
+    func redraw(size: CGSize)
     {
         // Prepare Uniforms
         let time = CACurrentMediaTime()-self.startTime
         let deltaTime = time - self.time
         let ptr = uniformsBuffer.contents().assumingMemoryBound(to: Uniforms.self)
         ptr.pointee = Uniforms(
-            resolution: [Float (target.bounds.width), Float (target.bounds.height)],
+            resolution: [Float (size.width), Float (size.height)],
             time: Float (time),
             deltaTime: Float (deltaTime),
             frameIndex: 0)
@@ -221,6 +232,23 @@ public class MetalHost {
     }
     
     @objc func tick (from displayLink: CADisplayLink) {
-         redraw ()
+        // If the previous frame is still rendering, skip this one rather than
+        // queueing up work: the background just keeps animating at a lower rate
+        frameLock.lock ()
+        if frameInFlight {
+            frameLock.unlock ()
+            return
+        }
+        frameInFlight = true
+        frameLock.unlock ()
+
+        // Layer geometry must be read on the main thread
+        let size = target.bounds.size
+        renderQueue.async {
+            self.redraw (size: size)
+            self.frameLock.lock ()
+            self.frameInFlight = false
+            self.frameLock.unlock ()
+        }
     }
 }

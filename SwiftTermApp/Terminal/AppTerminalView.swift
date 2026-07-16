@@ -128,6 +128,7 @@ public class AppTerminalView: TerminalView {
     }
     
     override public func didMoveToWindow() {
+        super.didMoveToWindow()
         if let mh = metalHost {
             mh.didMoveToWindow(view: self)
         }
@@ -148,7 +149,13 @@ public class AppTerminalView: TerminalView {
                 metalLayer = CAMetalLayer ()
                 metalLayer!.frame = frame
                 //metalLayer?.opacity = 0.4
-                
+
+                // When enabled at runtime didMoveToWindow will not fire again,
+                // so pick up the scale here or the shader renders at 1x
+                if let scale = window?.screen.nativeScale {
+                    metalLayer!.contentsScale = scale
+                }
+
                 // If we are currently attached to a ViewController (ie, we are up and running, as opposed to bootstarpping)
                 // we should insert the layer directioly.
                 if let mySuper = superview {
