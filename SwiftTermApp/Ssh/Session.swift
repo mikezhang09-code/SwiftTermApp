@@ -666,9 +666,10 @@ class Session: CustomDebugStringConvertible, Equatable {
                 var stdout = Data()
                 var stderr = Data()
                 
-                // One time, I got an exception from `c.resume` below being invoked twice, to avoid
-                // a crash, I catch this for now, but should find out why this happens.   Happened
-                // on first login.
+                // The double-resume this guards against was caused by concurrent ping
+                // tasks delivering EOF twice before the channel was unregistered; the
+                // serialized channel pump makes that impossible, this stays as a cheap
+                // safety net for a continuation that must never resume twice.
                 var usedHardeningUntilBugTracked = false
                 
                 let _ = await runAsync(command: command, lang: lang) { [weak self] channel, out, err, eof in
@@ -884,6 +885,11 @@ class SocketSession: Session {
     var bufferEOF = false
     var bufferLock = NSLock ()
     var bufferError: NWError? = nil
+
+    // Errors reported asynchronously by NWConnection.send completions, surfaced
+    // to libssh2 on the next send_callback invocation
+    var sendErrorLock = NSLock ()
+    var sendError: NWError? = nil
     
     // Starts the Network IO, accumultates data into buffer, and tracks
     // the end of data in bufferEof ("no more data after it is consumed"
@@ -986,6 +992,14 @@ class SocketSession: Session {
             logConnection ("NWConnection state .setup")
         case .waiting(let detail):
             logConnection ("NWConnection state: .waiting (\(detail))")
+            // NWConnection stays in .waiting retrying forever; a refused or
+            // unreachable endpoint should fail the session and tell the user
+            if case .posix (let code) = detail,
+               code == .ECONNREFUSED || code == .EHOSTUNREACH || code == .ENETUNREACH || code == .ETIMEDOUT {
+                DispatchQueue.main.async {
+                    self.connectionError (error: "Could not connect to \(self.host.hostname):\(self.host.port)\n\nDetail: \(detail.localizedDescription)")
+                }
+            }
         case .preparing:
             logConnection ("NWConnection state .preparing")
         case .ready:
@@ -1068,29 +1082,36 @@ class SocketSession: Session {
         return n
     }
     
-    // Callback invoked by libssh2 to send data over our connection
+    // Callback invoked by libssh2 to send data over our connection.
+    //
+    // The data is handed to NWConnection (which copies and buffers it internally)
+    // and we return immediately: blocking here with a semaphore would stall the
+    // thread libssh2 was called from, which is often a Swift concurrency
+    // cooperative thread.  A failure reported by the completion handler is stored
+    // and surfaced to libssh2 on the next send.
     static func send_callback(socket: libssh2_socket_t, buffer: UnsafeRawPointer, length: size_t, flags: CInt, abstract: UnsafeRawPointer) -> ssize_t {
         let session = SocketSession.getSocketSession(from: abstract)
-        
-        let connection = session.connection
+
+        session.sendErrorLock.lock ()
+        if let pendingError = session.sendError {
+            session.sendError = nil
+            session.sendErrorLock.unlock ()
+            return successOrError (pendingError, n: -1)
+        }
+        session.sendErrorLock.unlock ()
+
         let data = Data (bytes: buffer, count: length)
-        //print ("Sending \(data.count) bytes on \(session)")
-        //print (data.getDump(indent: "   sending>"))
-        let semaphore = DispatchSemaphore(value: 0)
-        var sendError: NWError? = nil
         if debugIO {
             print ("NWConnection, sending \(data.count)")
         }
-        connection.send (content: data, completion: .contentProcessed { error in
-            //print ("Send completed for \(data.count) bytes")
-            sendError = error
-            semaphore.signal()
+        session.connection.send (content: data, completion: .contentProcessed { error in
+            if let error = error {
+                session.sendErrorLock.lock ()
+                session.sendError = error
+                session.sendErrorLock.unlock ()
+            }
         })
-        semaphore.wait()
-        if debugIO {
-            print ("NWConnection, sent n: \(data.count) -> err=\(sendError?.debugDescription ?? "")")
-        }
-        return successOrError (sendError, n: data.count)
+        return ssize_t (length)
     }
   
     // Callback invoked by libssh2 to receive data from our connection
