@@ -26,10 +26,13 @@
 		4912EB772829C52A0083638C /* UIKitRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4912EB762829C52A0083638C /* UIKitRoot.swift */; };
 		49148F99268AB0B0000AB718 /* InputKeyboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49148F98268AB0B0000AB718 /* InputKeyboard.swift */; };
 		FA57B10FE5D1AB0000000002 /* SftpBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B10FE5D1AB0000000001 /* SftpBrowserView.swift */; };
+		FA57B10FE5D1AB0000000009 /* commandDictionary.plist in Resources */ = {isa = PBXBuildFile; fileRef = FA57B10FE5D1AB000000000A /* commandDictionary.plist */; };
+		FA57B10FE5D1AB0000000007 /* LocalTerminal.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B10FE5D1AB0000000006 /* LocalTerminal.swift */; };
 		49184C5D27BC1BA900335BFB /* ConnectionMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49184C5C27BC1BA900335BFB /* ConnectionMessage.swift */; };
 		49184C5F27BC1CAA00335BFB /* GenericConnectionIssue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49184C5E27BC1CAA00335BFB /* GenericConnectionIssue.swift */; };
 		4923C56627319336000CC371 /* LocationTracking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4923C56527319336000CC371 /* LocationTracking.swift */; };
 		4928BDEB27BF09BE00C180E6 /* CSSH in Frameworks */ = {isa = PBXBuildFile; productRef = 4928BDEA27BF09BE00C180E6 /* CSSH */; };
+		FA57B10FE5D1AB0000000004 /* ios_system in Frameworks */ = {isa = PBXBuildFile; productRef = FA57B10FE5D1AB0000000003 /* ios_system */; };
 		493F4F3027613F1B00838AC7 /* Session.swift in Sources */ = {isa = PBXBuildFile; fileRef = 493F4F2F27613F1B00838AC7 /* Session.swift */; };
 		493F4F3227650E7800838AC7 /* Errors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 493F4F3127650E7800838AC7 /* Errors.swift */; };
 		493F4F34276511CE00838AC7 /* Channel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 493F4F33276511CE00838AC7 /* Channel.swift */; };
@@ -152,6 +155,9 @@
 		4912EB762829C52A0083638C /* UIKitRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIKitRoot.swift; sourceTree = "<group>"; };
 		49148F98268AB0B0000AB718 /* InputKeyboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputKeyboard.swift; sourceTree = "<group>"; };
 		FA57B10FE5D1AB0000000001 /* SftpBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SftpBrowserView.swift; sourceTree = "<group>"; };
+		FA57B10FE5D1AB0000000006 /* LocalTerminal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalTerminal.swift; sourceTree = "<group>"; };
+		FA57B10FE5D1AB0000000008 /* ios_system */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ios_system; path = LocalPackages/ios_system; sourceTree = "<group>"; };
+		FA57B10FE5D1AB000000000A /* commandDictionary.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = commandDictionary.plist; sourceTree = "<group>"; };
 		49184C5C27BC1BA900335BFB /* ConnectionMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionMessage.swift; sourceTree = "<group>"; };
 		49184C5E27BC1CAA00335BFB /* GenericConnectionIssue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenericConnectionIssue.swift; sourceTree = "<group>"; };
 		4923C56527319336000CC371 /* LocationTracking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationTracking.swift; sourceTree = "<group>"; };
@@ -254,6 +260,7 @@
 				4912EB6828207E5C0083638C /* Introspect in Frameworks */,
 				49C1B6AF24625C7D00D54F6F /* SwiftTerm in Frameworks */,
 				4928BDEB27BF09BE00C180E6 /* CSSH in Frameworks */,
+				FA57B10FE5D1AB0000000004 /* ios_system in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -278,6 +285,7 @@
 			isa = PBXGroup;
 			children = (
 				4943DA6027F388C700E4E2F5 /* ci_scripts */,
+				FA57B10FE5D1AB0000000008 /* ios_system */,
 				4901167424553789002C1F85 /* SwiftTermApp */,
 				49F1D13F27DAB782004A9CB1 /* UITests */,
 				4901167324553789002C1F85 /* Products */,
@@ -300,6 +308,7 @@
 			children = (
 				49C650BA28333AC4005DFC17 /* SwiftTermApp.entitlements */,
 				497128C526656609005A2988 /* SwiftTermApp-Bridging-Header.h */,
+				FA57B10FE5D1AB000000000A /* commandDictionary.plist */,
 				490116832455378A002C1F85 /* Info.plist */,
 				49DBA02D283C7D490068D16A /* Localizable.strings */,
 				49DBA02A283C7D490068D16A /* InfoPlist.strings */,
@@ -537,6 +546,7 @@
 				499D36FC2658A093004E307F /* ConfigurableTerminal.swift */,
 				49148F98268AB0B0000AB718 /* InputKeyboard.swift */,
 				FA57B10FE5D1AB0000000001 /* SftpBrowserView.swift */,
+				FA57B10FE5D1AB0000000006 /* LocalTerminal.swift */,
 			);
 			path = Terminal;
 			sourceTree = "<group>";
@@ -650,6 +660,7 @@
 				4928BDEA27BF09BE00C180E6 /* CSSH */,
 				02C2FCC7282017A9005EDEC2 /* Shake */,
 				4912EB6728207E5C0083638C /* Introspect */,
+				FA57B10FE5D1AB0000000003 /* ios_system */,
 			);
 			productName = testMasterDetail;
 			productReference = 4901167224553789002C1F85 /* SwiftTermApp.app */;
@@ -747,6 +758,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				495512D12800BD2A00B4CDA2 /* SourceCodePro-Italic.ttf in Resources */,
+				FA57B10FE5D1AB0000000009 /* commandDictionary.plist in Resources */,
 				49DBA02C283C7D490068D16A /* InfoPlist.strings in Resources */,
 				49F1D13727DA5F11004A9CB1 /* openssl_1_1_1h.txt in Resources */,
 				49F1D13627DA5F11004A9CB1 /* swiftterm.txt in Resources */,
@@ -835,6 +847,7 @@
 				4901168E2456058B002C1F85 /* KeyManagementView.swift in Sources */,
 				49148F99268AB0B0000AB718 /* InputKeyboard.swift in Sources */,
 				FA57B10FE5D1AB0000000002 /* SftpBrowserView.swift in Sources */,
+				FA57B10FE5D1AB0000000007 /* LocalTerminal.swift in Sources */,
 				49BA35982676EEB600B63510 /* KeyTools.swift in Sources */,
 				49BA359A2676EFD200B63510 /* CreateLocalKeyButtons.swift in Sources */,
 				49A0A2C2249298BF002593F7 /* DigitalBrain.metal in Sources */,
@@ -1286,6 +1299,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 4928BDE927BF09BE00C180E6 /* XCRemoteSwiftPackageReference "Libssh2Prebuild" */;
 			productName = CSSH;
+		};
+		FA57B10FE5D1AB0000000003 /* ios_system */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ios_system;
 		};
 		49C1B6AE24625C7D00D54F6F /* SwiftTerm */ = {
 			isa = XCSwiftPackageProductDependency;

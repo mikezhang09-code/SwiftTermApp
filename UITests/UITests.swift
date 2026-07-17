@@ -24,7 +24,38 @@ class UITests: XCTestCase {
     }
 
     func testAddHost() throws {
-        
+
+    }
+
+    func testLocalTerminalOpens() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        let dismiss = app.buttons["Dismiss"]
+        if dismiss.waitForExistence(timeout: 5) {
+            dismiss.tap()
+        }
+
+        let link = app.staticTexts["Local Terminal"].firstMatch
+        XCTAssertTrue (link.waitForExistence(timeout: 10), "Local Terminal entry not found on Home")
+        link.tap()
+        sleep (3)
+
+        app.typeText ("uname -a\n")
+        sleep (1)
+        app.typeText ("ls /\n")
+        sleep (2)
+        app.typeText ("ping -c 2 127.0.0.1\n")
+        sleep (5)
+
+        let attachment = XCTAttachment (screenshot: app.screenshot ())
+        attachment.lifetime = .keepAlways
+        add (attachment)
+
+        // Dump the view hierarchy so we can see whether the terminal view exists
+        print ("HIERARCHY-BEGIN")
+        print (app.debugDescription)
+        print ("HIERARCHY-END")
     }
 
     //let password = try String (contentsOf: URL (fileURLWithPath: "/Users/miguel/password"))

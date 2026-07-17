@@ -1,69 +1,70 @@
 {
-  "originHash" : "adb5f82a7c811c2bfb7bdefbd6264879cee8d0419b642f6990d2a827605f10a2",
-  "pins" : [
-    {
-      "identity" : "libssh2prebuild",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/DimaRU/Libssh2Prebuild",
-      "state" : {
-        "revision" : "56e4285f64a34f543cba5d40805537ac927f9723",
-        "version" : "1.11.0-OpenSSL-1-1-1w"
+  "object": {
+    "pins": [
+      {
+        "package": "Libssh2Prebuild",
+        "repositoryURL": "https://github.com/DimaRU/Libssh2Prebuild",
+        "state": {
+          "branch": null,
+          "revision": "56e4285f64a34f543cba5d40805537ac927f9723",
+          "version": "1.11.0-OpenSSL-1-1-1w"
+        }
+      },
+      {
+        "package": "shake-ios",
+        "repositoryURL": "https://github.com/shakebugs/shake-ios",
+        "state": {
+          "branch": "master",
+          "revision": "c94e4c9437f1c1f8090f494a80ef7a1345f5fa1c",
+          "version": null
+        }
+      },
+      {
+        "package": "swift-argument-parser",
+        "repositoryURL": "https://github.com/apple/swift-argument-parser",
+        "state": {
+          "branch": null,
+          "revision": "cdd0ef3755280949551dc26dee5de9ddeda89f54",
+          "version": "1.6.2"
+        }
+      },
+      {
+        "package": "swift-subprocess",
+        "repositoryURL": "https://github.com/swiftlang/swift-subprocess",
+        "state": {
+          "branch": "main",
+          "revision": "ab2072d457d1464b17166cc02125fc9fc0791e1a",
+          "version": null
+        }
+      },
+      {
+        "package": "swift-system",
+        "repositoryURL": "https://github.com/apple/swift-system",
+        "state": {
+          "branch": null,
+          "revision": "395a77f0aa927f0ff73941d7ac35f2b46d47c9db",
+          "version": "1.6.3"
+        }
+      },
+      {
+        "package": "SwiftTerm",
+        "repositoryURL": "https://github.com/migueldeicaza/SwiftTerm.git",
+        "state": {
+          "branch": "main",
+          "revision": "f219b1fccc45493e55e62d559628fc8880f7e840",
+          "version": null
+        }
+      },
+      {
+        "package": "SwiftUI-Introspect",
+        "repositoryURL": "https://github.com/siteline/SwiftUI-Introspect.git",
+        "state": {
+          "branch": null,
+          "revision": "f2616860a41f9d9932da412a8978fec79c06fe24",
+          "version": "0.1.4"
+        }
       }
-    },
-    {
-      "identity" : "shake-ios",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/shakebugs/shake-ios",
-      "state" : {
-        "branch" : "master",
-        "revision" : "c94e4c9437f1c1f8090f494a80ef7a1345f5fa1c"
-      }
-    },
-    {
-      "identity" : "swift-argument-parser",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-argument-parser",
-      "state" : {
-        "revision" : "cdd0ef3755280949551dc26dee5de9ddeda89f54",
-        "version" : "1.6.2"
-      }
-    },
-    {
-      "identity" : "swift-subprocess",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swiftlang/swift-subprocess",
-      "state" : {
-        "branch" : "main",
-        "revision" : "ab2072d457d1464b17166cc02125fc9fc0791e1a"
-      }
-    },
-    {
-      "identity" : "swift-system",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-system",
-      "state" : {
-        "revision" : "395a77f0aa927f0ff73941d7ac35f2b46d47c9db",
-        "version" : "1.6.3"
-      }
-    },
-    {
-      "identity" : "swiftterm",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/migueldeicaza/SwiftTerm.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "f219b1fccc45493e55e62d559628fc8880f7e840"
-      }
-    },
-    {
-      "identity" : "swiftui-introspect",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/siteline/SwiftUI-Introspect.git",
-      "state" : {
-        "revision" : "f2616860a41f9d9932da412a8978fec79c06fe24",
-        "version" : "0.1.4"
-      }
-    }
-  ],
-  "version" : 3
+    ]
+  },
+  "version": 1
 }

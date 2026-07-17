@@ -216,6 +216,13 @@ struct HomeView: View {
                             .foregroundColor(Color (.systemGray))
                     })
                 NavigationLink(
+                    destination: LocalTerminalHost()
+                        .navigationTitle ("Local Terminal")
+                        .navigationBarTitleDisplayMode (.inline),
+                    label: {
+                        Label("Local Terminal", systemImage: "ipad.landscape")
+                    })
+                NavigationLink(
                     destination: KeyManagementView(),
                     label: {
                         Label("Keys", systemImage: "key")
