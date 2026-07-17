@@ -16,7 +16,11 @@ struct HostAuthUnknown: View {
     var okCallback: () -> () = {  }
     
     var body: some View {
-        VStack (alignment: .leading){
+        // The buttons are pinned at the bottom and the explanation scrolls, so the
+        // Cancel/Yes controls are always reachable even when the dialog is presented
+        // as a fixed-size sheet on iPad (otherwise the long fingerprint text pushes
+        // them off the bottom of the card, where they cannot be tapped).
+        VStack (spacing: 0) {
             HStack (alignment: .center){
                 Image (systemName: "info.circle")
                     .symbolRenderingMode(.hierarchical)
@@ -27,25 +31,30 @@ struct HostAuthUnknown: View {
                     .padding (10)
                 Text ("Host: \(alias)")
                     .font(.title)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
                 Spacer ()
             }
             .padding()
             .background(Color(UIColor.secondarySystemBackground))
-            //.background(.yellow)
-            VStack {
-                Text ("The authenticity of host '`\(hostString)`' can not be established.\n\nIf this is the first time you connect to this host, you can check that the fingertprint for the host matches the fingerprint you recognize and then proceed. Otherwise, select cancel.\n\nFingerprint:\n\n`\(fingerprint)`\n\nDo you want to continue connecting?")
-                    .padding ([.bottom])
-                HStack (alignment: .center, spacing: 20) {
-                    Button ("Cancel", role: .cancel) { cancelCallback () }
-                        .buttonStyle(.bordered)
-                        .controlSize(.large)
-                        .tint(Color.red)
 
-                    Button ("Yes", role: .none) { okCallback ()}
-                        .keyboardShortcut(.defaultAction)
-                        .buttonStyle(.bordered)
-                        .controlSize(.large)
-                }
+            ScrollView {
+                Text ("The authenticity of host '`\(hostString)`' can not be established.\n\nIf this is the first time you connect to this host, you can check that the fingertprint for the host matches the fingerprint you recognize and then proceed. Otherwise, select cancel.\n\nFingerprint:\n\n`\(fingerprint)`\n\nDo you want to continue connecting?")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding ()
+            }
+
+            Divider ()
+            HStack (alignment: .center, spacing: 20) {
+                Button ("Cancel", role: .cancel) { cancelCallback () }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .tint(Color.red)
+
+                Button ("Yes", role: .none) { okCallback ()}
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
             }
             .padding()
         }
