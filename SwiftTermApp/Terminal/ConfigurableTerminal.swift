@@ -73,6 +73,7 @@ struct ConfigurableUITerminal: View {
     @State var showConfig: Bool = false
     @State var showCommand: Bool = false
     @State var showClose: Bool = false
+    @State var showFiles: Bool = false
 
     func topMostViewController (_ t: UIViewController) -> UIViewController {
         if let presented = t.presentedViewController {
@@ -113,6 +114,9 @@ struct ConfigurableUITerminal: View {
                         Button (action: { self.showCommand = true }) {
                             Image(systemName: "note.text")
                         }
+                        Button (action: { self.showFiles = true }) {
+                            Image(systemName: "folder")
+                        }
                         Button (action: { self.showConfig = true }) {
                             Image(systemName: "gearshape")
                         }
@@ -134,6 +138,13 @@ struct ConfigurableUITerminal: View {
                 NavigationView {
                     CommandPicker (terminalGetter: terminalGetter)
                 }
+            }
+            .sheet (isPresented: $showFiles, onDismiss: {
+                if let visible = TerminalViewController.visibleTerminal {
+                    _ = visible.becomeFirstResponder()
+                }
+            }) {
+                SftpBrowserView (terminalGetter: terminalGetter)
             }
     }
 }

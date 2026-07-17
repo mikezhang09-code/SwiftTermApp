@@ -612,6 +612,38 @@ actor SessionActor {
         return 0
     }
     
+    /// Resolves a path (following symlinks, expanding relative paths) to its canonical form
+    func sftpRealpath (_ sftp: SFTP, path: String) async -> String? {
+        let maxLen = 2048
+        let buffer = UnsafeMutablePointer<CChar>.allocate(capacity: maxLen)
+        defer { buffer.deallocate() }
+        let rc = await callSsh {
+            libssh2_sftp_symlink_ex(sftp.handle, path, UInt32 (path.utf8.count), buffer, UInt32 (maxLen), LIBSSH2_SFTP_REALPATH)
+        }
+        guard rc > 0 else {
+            return nil
+        }
+        return String (data: Data (bytes: buffer, count: Int (rc)), encoding: .utf8)
+    }
+
+    func sftpMkdir (_ sftp: SFTP, path: String, mode: Int = 0o755) async -> Int32 {
+        return await callSsh {
+            libssh2_sftp_mkdir_ex(sftp.handle, path, UInt32 (path.utf8.count), mode)
+        }
+    }
+
+    func sftpUnlink (_ sftp: SFTP, path: String) async -> Int32 {
+        return await callSsh {
+            libssh2_sftp_unlink_ex(sftp.handle, path, UInt32 (path.utf8.count))
+        }
+    }
+
+    func sftpRmdir (_ sftp: SFTP, path: String) async -> Int32 {
+        return await callSsh {
+            libssh2_sftp_rmdir_ex(sftp.handle, path, UInt32 (path.utf8.count))
+        }
+    }
+
 //    libssh2_sftp_fsetstat()
 //    libssh2_sftp_fstat()
 //    libssh2_sftp_fstat_ex()

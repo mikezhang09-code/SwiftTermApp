@@ -25,6 +25,7 @@
 		4912EB752826EE1F0083638C /* Dialogs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4912EB742826EE1F0083638C /* Dialogs.swift */; };
 		4912EB772829C52A0083638C /* UIKitRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4912EB762829C52A0083638C /* UIKitRoot.swift */; };
 		49148F99268AB0B0000AB718 /* InputKeyboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49148F98268AB0B0000AB718 /* InputKeyboard.swift */; };
+		FA57B10FE5D1AB0000000002 /* SftpBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B10FE5D1AB0000000001 /* SftpBrowserView.swift */; };
 		49184C5D27BC1BA900335BFB /* ConnectionMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49184C5C27BC1BA900335BFB /* ConnectionMessage.swift */; };
 		49184C5F27BC1CAA00335BFB /* GenericConnectionIssue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49184C5E27BC1CAA00335BFB /* GenericConnectionIssue.swift */; };
 		4923C56627319336000CC371 /* LocationTracking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4923C56527319336000CC371 /* LocationTracking.swift */; };
@@ -150,6 +151,7 @@
 		4912EB742826EE1F0083638C /* Dialogs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dialogs.swift; sourceTree = "<group>"; };
 		4912EB762829C52A0083638C /* UIKitRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIKitRoot.swift; sourceTree = "<group>"; };
 		49148F98268AB0B0000AB718 /* InputKeyboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputKeyboard.swift; sourceTree = "<group>"; };
+		FA57B10FE5D1AB0000000001 /* SftpBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SftpBrowserView.swift; sourceTree = "<group>"; };
 		49184C5C27BC1BA900335BFB /* ConnectionMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionMessage.swift; sourceTree = "<group>"; };
 		49184C5E27BC1CAA00335BFB /* GenericConnectionIssue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenericConnectionIssue.swift; sourceTree = "<group>"; };
 		4923C56527319336000CC371 /* LocationTracking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationTracking.swift; sourceTree = "<group>"; };
@@ -534,6 +536,7 @@
 				49C1B6B4246260DC00D54F6F /* TerminalViewController.swift */,
 				499D36FC2658A093004E307F /* ConfigurableTerminal.swift */,
 				49148F98268AB0B0000AB718 /* InputKeyboard.swift */,
+				FA57B10FE5D1AB0000000001 /* SftpBrowserView.swift */,
 			);
 			path = Terminal;
 			sourceTree = "<group>";
@@ -831,6 +834,7 @@
 				493F4F34276511CE00838AC7 /* Channel.swift in Sources */,
 				4901168E2456058B002C1F85 /* KeyManagementView.swift in Sources */,
 				49148F99268AB0B0000AB718 /* InputKeyboard.swift in Sources */,
+				FA57B10FE5D1AB0000000002 /* SftpBrowserView.swift in Sources */,
 				49BA35982676EEB600B63510 /* KeyTools.swift in Sources */,
 				49BA359A2676EFD200B63510 /* CreateLocalKeyButtons.swift in Sources */,
 				49A0A2C2249298BF002593F7 /* DigitalBrain.metal in Sources */,
