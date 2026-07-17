@@ -36,17 +36,23 @@ class UITests: XCTestCase {
             dismiss.tap()
         }
 
+        // On iPad the app is a split view; the Home sidebar (with Local Terminal) may
+        // launch collapsed, so reveal it by tapping the sidebar toggle if needed.
         let link = app.staticTexts["Local Terminal"].firstMatch
+        if !link.waitForExistence(timeout: 3) {
+            app.navigationBars.buttons.firstMatch.tap()
+        }
         XCTAssertTrue (link.waitForExistence(timeout: 10), "Local Terminal entry not found on Home")
         link.tap()
         sleep (3)
 
+        // Type commands and screenshot shortly after. This checks both that the prompt
+        // returns promptly (was ~3s via the old failsafe) and that command output prints
+        // before the next prompt (a single reader keeps them ordered).
         app.typeText ("uname -a\n")
-        sleep (1)
-        app.typeText ("ls /\n")
-        sleep (2)
-        app.typeText ("ping -c 2 127.0.0.1\n")
-        sleep (5)
+        usleep (500_000)
+        app.typeText ("echo ORDER-CHECK\n")
+        usleep (500_000)
 
         let attachment = XCTAttachment (screenshot: app.screenshot ())
         attachment.lifetime = .keepAlways

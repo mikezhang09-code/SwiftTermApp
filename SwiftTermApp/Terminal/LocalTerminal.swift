@@ -48,6 +48,13 @@ class LocalTerminalView: AppTerminalView, TerminalViewDelegate {
     var running = false
     var pendingEscape = false
     let executor = DispatchQueue (label: "local-terminal", qos: .userInitiated)
+    let readerQueue = DispatchQueue (label: "local-terminal-reader", qos: .userInitiated)
+
+    // Shared between the command thread (which sets them when ios_system returns) and
+    // the reader loop (which finishes the command once the pipe is drained)
+    private let stateLock = NSLock ()
+    private var pendingExit: Int32 = 0
+    private var commandDone = false
 
     init (frame: CGRect) throws {
         let host = MemoryHost (alias: "iPad", hostname: "localhost", hostKind: "apple")
@@ -159,46 +166,67 @@ class LocalTerminalView: AppTerminalView, TerminalViewDelegate {
                 }
                 return
             }
-            var exitCode: Int32 = 0
-            let reader = FileHandle (fileDescriptor: fds [0], closeOnDealloc: true)
-            reader.readabilityHandler = { fh in
-                let data = fh.availableData
-                if data.count > 0 {
-                    let text = (String (data: data, encoding: .utf8) ?? "<binary output>")
-                        .replacingOccurrences (of: "\r\n", with: "\n")
-                        .replacingOccurrences (of: "\n", with: "\r\n")
-                    DispatchQueue.main.async {
-                        self.feed (text: text)
+            let readFd = fds [0]
+            // Non-blocking so the reader never wedges even though ios_system reuses the
+            // write descriptor and the pipe may never report EOF
+            _ = fcntl (readFd, F_SETFL, fcntl (readFd, F_GETFL) | O_NONBLOCK)
+
+            self.stateLock.lock ()
+            self.commandDone = false
+            self.stateLock.unlock ()
+
+            // A single reader owns both the command output and the closing prompt, so
+            // they can never be reordered (a concurrent reader plus a separate "finish"
+            // once raced the prompt ahead of the last output chunk).  It drains the pipe
+            // live while the command runs, then — once the command has returned and the
+            // pipe is empty — restores the prompt.
+            self.readerQueue.async {
+                var buffer = [UInt8] (repeating: 0, count: 16384)
+                while true {
+                    let n = read (readFd, &buffer, buffer.count)
+                    if n > 0 {
+                        let text = LocalTerminalView.terminalText (Data (buffer [0 ..< n]))
+                        DispatchQueue.main.async { self.feed (text: text) }
+                        continue
                     }
-                } else {
-                    // EOF: all the output has been delivered, wrap up
-                    fh.readabilityHandler = nil
-                    DispatchQueue.main.async {
-                        self.finishCommand (exitCode: exitCode)
+                    // No data right now: finish if the command is done, else wait for more
+                    self.stateLock.lock ()
+                    let done = self.commandDone
+                    let code = self.pendingExit
+                    self.stateLock.unlock ()
+                    if done {
+                        close (readFd)
+                        DispatchQueue.main.async { self.finishCommand (exitCode: code) }
+                        return
                     }
+                    usleep (4000)
                 }
             }
 
             let input = fopen ("/dev/null", "r")
             ios_setStreams (input, writer, writer)
-            exitCode = ios_system (command)
+            // joinMainThread defaults to true, so ios_system blocks until the command
+            // finishes; by the time it returns all output has been written to the pipe.
+            let exitCode = ios_system (command)
             fflush (writer)
             fclose (writer)
             if input != nil {
                 fclose (input)
             }
-            // ios_system keeps duplicated descriptors of our pipe in its session;
-            // closing the session releases them so the reader above sees EOF.
-            // (cd persists anyway: the working directory lives on the process)
-            ios_closeSession (sessionId)
 
-            // Failsafe: if EOF never arrives, do not leave the terminal wedged
-            self.executor.asyncAfter (deadline: .now () + 3) {
-                DispatchQueue.main.async {
-                    self.finishCommand (exitCode: exitCode)
-                }
-            }
+            self.stateLock.lock ()
+            self.pendingExit = exitCode
+            self.commandDone = true
+            self.stateLock.unlock ()
         }
+    }
+
+    /// Renders raw command output for the terminal: lossy UTF-8 (so invalid bytes
+    /// do not drop the whole chunk) with bare newlines promoted to CRLF.
+    static func terminalText (_ data: Data) -> String {
+        String (decoding: data, as: UTF8.self)
+            .replacingOccurrences (of: "\r\n", with: "\n")
+            .replacingOccurrences (of: "\n", with: "\r\n")
     }
 
     /// Ends the current command: prints the exit code if it failed, restores the
