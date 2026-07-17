@@ -74,6 +74,7 @@ struct ConfigurableUITerminal: View {
     @State var showCommand: Bool = false
     @State var showClose: Bool = false
     @State var showFiles: Bool = false
+    @State var showForwards: Bool = false
 
     func topMostViewController (_ t: UIViewController) -> UIViewController {
         if let presented = t.presentedViewController {
@@ -117,6 +118,9 @@ struct ConfigurableUITerminal: View {
                         Button (action: { self.showFiles = true }) {
                             Image(systemName: "folder")
                         }
+                        Button (action: { self.showForwards = true }) {
+                            Image(systemName: "arrow.left.arrow.right")
+                        }
                         Button (action: { self.showConfig = true }) {
                             Image(systemName: "gearshape")
                         }
@@ -145,6 +149,13 @@ struct ConfigurableUITerminal: View {
                 }
             }) {
                 SftpBrowserView (terminalGetter: terminalGetter)
+            }
+            .sheet (isPresented: $showForwards, onDismiss: {
+                if let visible = TerminalViewController.visibleTerminal {
+                    _ = visible.becomeFirstResponder()
+                }
+            }) {
+                PortForwardsView (host: terminalView?.host ?? host!, terminalGetter: terminalGetter)
             }
     }
 }

@@ -307,6 +307,8 @@ public class SshTerminalView: AppTerminalView, TerminalViewDelegate, SessionDele
     func loggedIn (session: Session) async {
         await setupTerminalChannel (session: session)
         DispatchQueue.main.async {
+            // Point this host's port forwards at the (possibly reconnected) session
+            PortForwardStore.shared.bind (hostId: self.host.id, session: session)
             if self.reconnectAttempts > 0 {
                 self.reconnectAttempts = 0
                 self.feed (text: "\r\n\u{1b}[32m[reconnected]\u{1b}[0m\r\n")
