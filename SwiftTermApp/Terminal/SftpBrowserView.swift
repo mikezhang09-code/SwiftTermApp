@@ -23,8 +23,15 @@ struct SftpBrowserView: View {
     @State var mkdirPromptShown = false
     @State var mkdirName = ""
 
+    // Set when a private-key file is tapped, driving the download-or-import prompt
+    @State var keyActionEntry: SftpDirEntry? = nil
+    @State var importedKeyMessage: String? = nil
+
     // Transfers are held fully in memory (SessionActor's read/write API); keep a sane cap
     static let transferLimit = 256 * 1024 * 1024
+
+    // Private keys are small; refuse to slurp anything larger as a key
+    static let keySizeLimit = 128 * 1024
 
     var sortedEntries: [SftpDirEntry] {
         entries.sorted {
@@ -104,6 +111,62 @@ struct SftpBrowserView: View {
         await MainActor.run {
             share (fileUrl: local)
         }
+    }
+
+    /// A file worth offering to import as an SSH key: a plausible name, or one
+    /// living under a .ssh directory, sized like a key rather than a blob.
+    func looksLikePrivateKey (_ entry: SftpDirEntry) -> Bool {
+        guard !entry.isDirectory, entry.size > 0, entry.size < SftpBrowserView.keySizeLimit else {
+            return false
+        }
+        let name = entry.name.lowercased ()
+        if name.hasSuffix (".pub") { return false }
+        if path.lowercased ().hasSuffix ("/.ssh") { return true }
+        return name.hasSuffix (".pem") || name.hasSuffix (".key")
+            || name.hasPrefix ("id_") || name == "identity"
+    }
+
+    /// Reads the file and, if it is a PEM/OpenSSH private key, stores it in the
+    /// app's key list — the same destination as pasting a key by hand, but pulled
+    /// straight off the host over SFTP instead of copied from another device.
+    func importAsKey (_ entry: SftpDirEntry) async {
+        guard let sftp else { return }
+        busy = true
+        defer { busy = false }
+        let remote = join (path, entry.name)
+        guard let contents = await sftp.readFileAsString (path: remote, limit: SftpBrowserView.keySizeLimit) else {
+            statusMessage = "Could not read \(remote)"
+            return
+        }
+        guard contents.contains ("BEGIN") && contents.contains ("PRIVATE KEY") else {
+            statusMessage = "\(entry.name) does not look like a private key"
+            return
+        }
+        // Try to attach the matching public key sitting next to it (id_rsa -> id_rsa.pub)
+        var publicKey = ""
+        if let pub = await sftp.readFileAsString (path: remote + ".pub", limit: SftpBrowserView.keySizeLimit),
+           pub.contains ("ssh-") || pub.contains ("ecdsa-") {
+            publicKey = pub.trimmingCharacters (in: .whitespacesAndNewlines)
+        }
+
+        let keyType: KeyType = contents.contains ("EC PRIVATE KEY") ? .ecdsa (inEnclave: false) : .rsa (2048)
+        await MainActor.run {
+            let key = CKey (context: globalDataController.container.viewContext)
+            key.id = UUID ()
+            key.name = "\(entry.name) (from \(host.alias == "" ? host.hostname : host.alias))"
+            key.type = keyType
+            key.privateKey = contents
+            key.publicKey = publicKey
+            key.passphrase = ""
+            globalDataController.save ()
+            importedKeyMessage = SshUtil.openSSHKeyRequiresPassword (key: contents)
+                ? "Imported \(entry.name) — it is passphrase-protected, so add the passphrase in Keys before using it."
+                : "Imported \(entry.name) into your keys."
+        }
+    }
+
+    var host: Host {
+        (terminalGetter () as? SshTerminalView)?.host ?? MemoryHost ()
     }
 
     func share (fileUrl: URL) {
@@ -232,6 +295,30 @@ struct SftpBrowserView: View {
                 }
             }
             .fileImporter (isPresented: $uploadPickerShown, allowedContentTypes: [.item], onCompletion: upload)
+            .confirmationDialog (keyActionEntry?.name ?? "", isPresented: Binding (
+                get: { keyActionEntry != nil },
+                set: { if !$0 { keyActionEntry = nil } }), titleVisibility: .visible) {
+                if let entry = keyActionEntry {
+                    Button ("Import as SSH Key") {
+                        keyActionEntry = nil
+                        Task { await importAsKey (entry) }
+                    }
+                    Button ("Download") {
+                        keyActionEntry = nil
+                        Task { await download (entry) }
+                    }
+                    Button ("Cancel", role: .cancel) { keyActionEntry = nil }
+                }
+            } message: {
+                Text ("This looks like a private key. Import it into your keys, or download the file.")
+            }
+            .alert ("Key Import", isPresented: Binding (
+                get: { importedKeyMessage != nil },
+                set: { if !$0 { importedKeyMessage = nil } })) {
+                Button ("OK") { importedKeyMessage = nil }
+            } message: {
+                Text (importedKeyMessage ?? "")
+            }
             .sheet (isPresented: $mkdirPromptShown) {
                 NavigationView {
                     Form {
@@ -268,13 +355,15 @@ struct SftpBrowserView: View {
         Button (action: {
             if entry.isDirectory {
                 navigate (into: entry.name)
+            } else if looksLikePrivateKey (entry) {
+                keyActionEntry = entry
             } else {
                 Task { await download (entry) }
             }
         }) {
             HStack {
-                Image (systemName: entry.isDirectory ? "folder.fill" : (entry.isSymlink ? "link" : "doc"))
-                    .foregroundColor (entry.isDirectory ? .accentColor : .secondary)
+                Image (systemName: entry.isDirectory ? "folder.fill" : (looksLikePrivateKey (entry) ? "key" : (entry.isSymlink ? "link" : "doc")))
+                    .foregroundColor (entry.isDirectory ? .accentColor : (looksLikePrivateKey (entry) ? .orange : .secondary))
                     .frame (width: 24)
                 Text (entry.name)
                     .lineLimit (1)
