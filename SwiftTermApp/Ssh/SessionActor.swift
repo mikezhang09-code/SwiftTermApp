@@ -202,6 +202,18 @@ actor SessionActor {
             return libssh2_userauth_authenticated(sessionHandle) == 1
         }
     }
+
+    /// Returns the SSH userauth banner sent by the server, if one has arrived.
+    /// Tailscale SSH uses this to deliver the browser-authorization URL (check mode)
+    /// and policy-rejection reasons; it is available while an auth call is pending.
+    public func userAuthBanner () -> String? {
+        var ptr: UnsafeMutablePointer<CChar>? = nil
+        guard libssh2_userauth_banner (sessionHandle, &ptr) == 0, let cstr = ptr else {
+            return nil
+        }
+        let banner = String (validatingUTF8: cstr) ?? ""
+        return banner == "" ? nil : banner
+    }
     
     public var lastError: String {
         get {

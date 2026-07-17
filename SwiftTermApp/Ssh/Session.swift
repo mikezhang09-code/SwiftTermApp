@@ -142,6 +142,65 @@ class Session: CustomDebugStringConvertible, Equatable {
     public func userAuthenticationList (username: String) async -> String {
         return await sessionActor.userAuthenticationList (username: username)
     }
+
+    /// The last userauth banner surfaced to the user, used to avoid showing it twice
+    var surfacedAuthBanner: String? = nil
+
+    /// Logs the userauth banner, and if it was delivered while authentication is still
+    /// waiting (`pending`) and contains a URL — Tailscale SSH's check mode asking the
+    /// user to authorize the session in a browser — offers to open it.
+    func presentAuthBanner (_ banner: String, pending: Bool) async {
+        guard surfacedAuthBanner != banner else { return }
+        surfacedAuthBanner = banner
+        let trimmed = banner.trimmingCharacters (in: .whitespacesAndNewlines)
+        logConnection ("SSH: auth banner: \(trimmed)")
+        guard pending else { return }
+        guard let url = Session.firstUrl (in: banner) else { return }
+        guard let parent = await getParentViewController (hint: delegate.getResponder()) else {
+            logConnection ("SSH: cannot present the authorization banner, no parent view controller")
+            return
+        }
+        await MainActor.run {
+            let alert = UIAlertController (title: "Authorization Required",
+                                           message: trimmed,
+                                           preferredStyle: .alert)
+            alert.addAction (UIAlertAction (title: "Open in Browser", style: .default) { _ in
+                UIApplication.shared.open (url)
+            })
+            alert.addAction (UIAlertAction (title: "Dismiss", style: .cancel))
+            parent.present (alert, animated: true)
+        }
+    }
+
+    static func firstUrl (in text: String) -> URL? {
+        guard let detector = try? NSDataDetector (types: NSTextCheckingResult.CheckingType.link.rawValue) else {
+            return nil
+        }
+        let range = NSRange (text.startIndex..., in: text)
+        for match in detector.matches (in: text, range: range) {
+            if let url = match.url, url.scheme == "https" || url.scheme == "http" {
+                return url
+            }
+        }
+        return nil
+    }
+
+    /// Polls for a userauth banner while an authentication call is pending; Tailscale's
+    /// check mode holds the auth reply until the user authorizes in the browser, so the
+    /// banner with the URL has to be surfaced during the wait, not after it.
+    func watchAuthBanner () async {
+        while !Task.isCancelled {
+            if let banner = await sessionActor.userAuthBanner () {
+                await presentAuthBanner (banner, pending: true)
+                return
+            }
+            do {
+                try await Task.sleep (nanoseconds: 300_000_000)
+            } catch {
+                return
+            }
+        }
+    }
     
     /// Returns the hostkey SHA256 hash from the session as an array of bytes
     public func getFingerprintBytes () async -> [UInt8]? {
@@ -354,7 +413,16 @@ class Session: CustomDebugStringConvertible, Equatable {
             }
         }
         
+        // Watch for the userauth banner while the query below is pending: Tailscale SSH
+        // holds the reply in check mode until the user authorizes in a browser, and the
+        // URL to do so only arrives via the banner (which libssh2 otherwise swallows)
+        let bannerWatcher = Task { await watchAuthBanner () }
         let authMethods = await userAuthenticationList(username: user)
+        bannerWatcher.cancel()
+        // A banner that arrived along with the reply is informational: log it, no dialog
+        if let banner = await sessionActor.userAuthBanner () {
+            await presentAuthBanner (banner, pending: false)
+        }
         logConnection("SSH: got \(authMethods)")
         if authMethods == "" {
             return nil
