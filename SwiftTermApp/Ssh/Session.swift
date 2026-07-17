@@ -935,9 +935,10 @@ class SocketSession: Session {
         logConnection("Starting NWConnection to \(host.hostname):\(host.port)")
 
         connection.stateUpdateHandler = connectionStateHandler
+        setupConnectionWatchers ()
         connection.start (queue: SocketSession.networkQueue)
     }
-    
+
     deinit{
         print ("SocketSession being disposed")
     }
@@ -1004,12 +1005,52 @@ class SocketSession: Session {
             if restart {
                 self.startIO()
             } else {
-                
+                // The transport is gone: the remote closed the TCP stream or the read
+                // failed.  This is not the same as a channel-level EOF (the user typing
+                // "exit"), so give the terminals a chance to reconnect their session.
+                self.remoteEndDisconnected (reason: error == nil
+                    ? "Remote end disconnected"
+                    : "The network connection failed")
             }
         }
     }
-    
+
+    /// Set when the session is intentionally shut down, so late failure signals
+    /// from the dying connection do not trigger dialogs or reconnection attempts
+    var closed = false
+
+    /// Pending "declare the connection dead" work, scheduled when the network
+    /// reports the connection is no longer viable, cancelled if it recovers
+    var viabilityTimeout: DispatchWorkItem? = nil
+
+    /// How long the connection may stay unviable (no known route to the peer,
+    /// for example after switching from WiFi to cellular) before we declare it
+    /// dead and start the reconnection flow
+    static let viabilityGrace = 10.0
+
+    func setupConnectionWatchers () {
+        connection.viabilityUpdateHandler = { [weak self] viable in
+            guard let self = self else { return }
+            self.logConnection ("NWConnection viability: \(viable)")
+            self.viabilityTimeout?.cancel ()
+            self.viabilityTimeout = nil
+            if !viable {
+                let work = DispatchWorkItem { [weak self] in
+                    self?.remoteEndDisconnected (reason: "The network connection was lost")
+                }
+                self.viabilityTimeout = work
+                SocketSession.networkQueue.asyncAfter (deadline: .now () + SocketSession.viabilityGrace, execute: work)
+            }
+        }
+        connection.betterPathUpdateHandler = { [weak self] better in
+            self?.logConnection ("NWConnection better path available: \(better)")
+        }
+    }
+
     public override func shutdown () {
+        closed = true
+        viabilityTimeout?.cancel ()
+        viabilityTimeout = nil
         connection.cancel()
     }
     
@@ -1067,12 +1108,11 @@ class SocketSession: Session {
         case .waiting(let detail):
             logConnection ("NWConnection state: .waiting (\(detail))")
             // NWConnection stays in .waiting retrying forever; a refused or
-            // unreachable endpoint should fail the session and tell the user
+            // unreachable endpoint should fail the session, and either start
+            // the reconnection flow or tell the user
             if case .posix (let code) = detail,
                code == .ECONNREFUSED || code == .EHOSTUNREACH || code == .ENETUNREACH || code == .ETIMEDOUT {
-                DispatchQueue.main.async {
-                    self.connectionError (error: "Could not connect to \(self.host.hostname):\(self.host.port)\n\nDetail: \(detail.localizedDescription)")
-                }
+                remoteEndDisconnected (reason: "Could not connect to \(self.host.hostname):\(self.host.port)\n\nDetail: \(detail.localizedDescription)")
             }
         case .preparing:
             logConnection ("NWConnection state .preparing")
@@ -1092,43 +1132,38 @@ class SocketSession: Session {
         }
     }
     
-    func reconnect () {
-        connection = NWConnection(host: NWEndpoint.Host (host.hostname), port: NWEndpoint.Port (integerLiteral: UInt16 (host.port & 0xffff)), using: .tcp)
-        logConnection("Restarting NWConnection to \(host.hostname):\(host.port)")
+    /// Set once the connection has been declared dead, so the multiple failure
+    /// signals a drop produces (state change, read error, viability timeout)
+    /// result in a single recovery pass
+    var dropHandled = false
 
-        connection.stateUpdateHandler = connectionStateHandler
-        connection.start (queue: SocketSession.networkQueue)
-    }
-    
-    func attemptReconnect () -> Bool {
-        var shouldReconnect = false
-        
-        for term in terminals {
-            if term.wantsSessionReconnect {
-                shouldReconnect = true
-                break
-            }
-        }
-        if shouldReconnect == false {
-            return false
-        }
-        self.shutdown()
-        self.reconnect ()
-
-        for term in terminals {
-            if term.wantsSessionReconnect {
-                Task {
-                    await term.reconnect (session: self)
-                }
-            }
-        }
-        return true
-    }
-    
-    func remoteEndDisconnected () {
+    /// Handles the transport dying: terminals whose host is set up for tmux
+    /// restoration get a fresh session to reconnect with (see
+    /// `SshTerminalView.sessionDropped`); anything else surfaces the error.
+    ///
+    /// A libssh2 session cannot survive its transport, so recovery always means
+    /// tearing this session down and building a new one.
+    func remoteEndDisconnected (reason: String = "Remote end disconnected") {
         DispatchQueue.main.async {
-            if !self.attemptReconnect() {
-                self.connectionError(error: "Remote end disconnected")
+            if self.dropHandled || self.closed {
+                return
+            }
+            self.dropHandled = true
+            self.shutdown ()
+            Connections.unregister (session: self)
+            let terminals = self.terminals
+            if terminals.isEmpty {
+                self.logConnection ("Connection: \(reason) (no terminals attached)")
+                return
+            }
+            let reconnecting = terminals.filter { $0.wantsSessionReconnect }
+            if reconnecting.isEmpty {
+                self.connectionError (error: reason)
+            } else {
+                self.logConnection ("Connection: \(reason), starting reconnection")
+                for terminal in reconnecting {
+                    terminal.sessionDropped (reason: reason)
+                }
             }
         }
     }

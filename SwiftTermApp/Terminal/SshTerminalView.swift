@@ -241,9 +241,7 @@ public class SshTerminalView: AppTerminalView, TerminalViewDelegate, SessionDele
         // Code to test the reconnection, it forces a reconnection from the app in 5 seconds
         #if false
         DispatchQueue.main.asyncAfter (deadline: .now() + 5) {
-            Task {
-                await self.attemptReconnect()
-            }
+            (self.session as? SocketSession)?.remoteEndDisconnected (reason: "Testing the reconnection flow")
         }
         #endif
         return true
@@ -308,6 +306,12 @@ public class SshTerminalView: AppTerminalView, TerminalViewDelegate, SessionDele
     // Delegate SocketSessionDelegate.loggedIn: invoked when the connection has been authenticated
     func loggedIn (session: Session) async {
         await setupTerminalChannel (session: session)
+        DispatchQueue.main.async {
+            if self.reconnectAttempts > 0 {
+                self.reconnectAttempts = 0
+                self.feed (text: "\r\n\u{1b}[32m[reconnected]\u{1b}[0m\r\n")
+            }
+        }
     }
     
     func loginFailed(session: Session, details: String) {
@@ -323,8 +327,33 @@ public class SshTerminalView: AppTerminalView, TerminalViewDelegate, SessionDele
         session = nil
     }
     
-    func reconnect (session: Session) async {
-       await setupTerminalChannel(session: session)
+    // Exponential-backoff state for automatic reconnection (see sessionDropped)
+    var reconnectAttempts = 0
+    static let reconnectAttemptLimit = 5
+
+    /// Called on the main queue when the session transport died: tears down the
+    /// dead session and schedules a fresh connection with exponential backoff.
+    /// tmux restoration then reattaches the running session on the new connection.
+    func sessionDropped (reason: String) {
+        dispatchPrecondition(condition: .onQueue(DispatchQueue.main))
+        closeTerminal ()
+        guard reconnectAttempts < SshTerminalView.reconnectAttemptLimit else {
+            reconnectAttempts = 0
+            connectionError (error: "\(reason)\n\nGave up after \(SshTerminalView.reconnectAttemptLimit) reconnection attempts")
+            return
+        }
+        reconnectAttempts += 1
+        let delay = min (pow (2.0, Double (reconnectAttempts - 1)), 15.0)
+        feed (text: "\r\n\u{1b}[33m[\(reason) — reconnecting in \(Int (delay))s, attempt \(reconnectAttempts) of \(SshTerminalView.reconnectAttemptLimit)]\u{1b}[0m\r\n")
+        DispatchQueue.main.asyncAfter (deadline: .now () + delay) { [weak self] in
+            guard let self = self else { return }
+            // The terminal may have been closed, or already be on a new session
+            guard self.session == nil else { return }
+            let fresh = SocketSession (host: self.host, delegate: self)
+            self.session = fresh
+            fresh.track (terminal: self)
+            Connections.track (session: fresh)
+        }
     }
     
     init (frame: CGRect, host: Host, serial: Int = -1) throws
