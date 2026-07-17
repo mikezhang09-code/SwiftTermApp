@@ -98,6 +98,31 @@ public class AppTerminalView: TerminalView {
 
         addGestureRecognizer(UIPinchGestureRecognizer (target: self, action: #selector(pinchHandler)))
         keyboardTapRecognizer = UITapGestureRecognizer (target: self, action: #selector (activate))
+
+        setupKeyboardBar ()
+    }
+
+    /// Replaces SwiftTerm's accessory with the app's own bar, which adds the keyboard-mode
+    /// button (system/QWERTY/function pad) and the collapse button, and restores the mode
+    /// the user last picked.
+    func setupKeyboardBar () {
+        let short = UIDevice.current.userInterfaceIdiom == .phone
+        let bar = TerminalKeyboardBar (frame: CGRect (x: 0, y: 0, width: frame.width, height: short ? 36 : 48),
+                                       container: self)
+        bar.sizeToFit ()
+        inputAccessoryView = bar
+        bar.apply (mode: SoftKeyboardMode.saved)
+    }
+
+    /// The app's accessory bar replaces SwiftTerm's TerminalAccessory, so SwiftTerm's own
+    /// control-modifier handling in insertText never fires; compose ctrl+key here instead.
+    open override func insertText (_ text: String) {
+        if let bar = inputAccessoryView as? TerminalKeyboardBar, bar.controlOn {
+            bar.controlOn = false
+            send (TerminalKeyboardBar.applyControl (to: text))
+            return
+        }
+        super.insertText (text)
     }
 
     override public func becomeFirstResponder() -> Bool {
