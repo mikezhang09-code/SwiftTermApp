@@ -250,14 +250,15 @@ class Session: CustomDebugStringConvertible, Equatable {
         /// - Returns: true if the user allowed to proceed, false otherwise
         @MainActor
         func confirmHostAuthUnknown (hostKeyType: String, key: [Int8], fingerprint: String, knownHosts: LibsshKnownHost, host: Host) async -> Bool {
+            // Wait for the view hierarchy to settle so the dialog can present even on the
+            // first connection, when the terminal view may not be in a window yet
+            guard let parent = await awaitParentViewController (hint: delegate.getResponder()) else {
+                self.logConnection ("SSH: cannot present host verification dialog, no parent view controller")
+                return false
+            }
             let ok: Bool = await withCheckedContinuation { c in
-                guard let parent = getParentViewController (hint: delegate.getResponder()) else {
-                    self.logConnection ("SSH: cannot present host verification dialog, no parent view controller")
-                    c.resume(returning: false)
-                    return
-                }
                 self.logConnection ("SSH: prompting user to verify unknown host key (parent: \(type (of: parent)))")
-                
+
                 var window: UIHostingController<HostAuthUnknown>!
                 window = UIHostingController<HostAuthUnknown>(rootView: HostAuthUnknown(alias: self.host.alias, hostString: getHostName(host: host), fingerprint: fingerprint, cancelCallback: {
                     self.closeSession()
@@ -269,7 +270,7 @@ class Session: CustomDebugStringConvertible, Equatable {
                 }))
                 parent.present(window, animated: true, completion: nil)
             }
-            
+
             if ok {
                 if let addError = await knownHosts.add(hostname: self.host.hostname, port: Int32 (self.host.port), key: key, keyType: hostKeyType, comment: self.host.alias) {
                     print ("Error adding host to knownHosts: \(addError)")
@@ -281,25 +282,53 @@ class Session: CustomDebugStringConvertible, Equatable {
             }
             return ok
         }
-        
-        /// Displays a message informing the user that there has been a host mismatch key
-        @MainActor
-        func showHostKeyMismatch (fingerprint: String) async {
-            let _: Void = await withCheckedContinuation { c in
-                self.closeSession()
-                guard let parent = getParentViewController (hint: delegate.getResponder()) else {
-                    return
+
+        /// Records the newly presented host key as the trusted one, replacing any
+        /// previously stored key for this host (the equivalent of `ssh-keygen -R host`
+        /// followed by accepting the new key).
+        func replaceKnownHostKey (hostKeyType: String, key: [Int8]) async {
+            let hostname = self.host.hostname
+            let bracketed = "[\(hostname)]:\(self.host.port)"
+            await MainActor.run {
+                // Drop stored entries for this host, in both the plain and [host]:port forms
+                DataStore.shared.knownHosts.removeAll { $0.host == hostname || $0.host == bracketed }
+                DataStore.shared.saveKnownHosts ()
+            }
+            // Add the new key through a fresh known-hosts object that reads the cleaned
+            // file, so the stale in-memory key is not written back alongside the new one
+            if let fresh = await makeKnownHost () {
+                let _ = await fresh.readFile (filename: DataStore.shared.knownHostsPath)
+                if let addError = await fresh.add (hostname: hostname, port: Int32 (self.host.port), key: key, keyType: hostKeyType, comment: self.host.alias) {
+                    print ("Error adding replacement host key: \(addError)")
                 }
+                if let writeError = await fresh.writeFile (filename: DataStore.shared.knownHostsPath) {
+                    print ("Error writing knownhosts file: \(writeError)")
+                }
+            }
+            await MainActor.run { DataStore.shared.loadKnownHosts () }
+        }
+
+        /// Warns that the stored host key no longer matches, and offers to either abort
+        /// or trust the new key.  Returns true if the user chose to accept the new key
+        /// (in which case it has been recorded and the connection may proceed).
+        @MainActor
+        func showHostKeyMismatch (hostKeyType: String, key: [Int8], fingerprint: String) async -> Bool {
+            guard let parent = await awaitParentViewController (hint: delegate.getResponder()) else {
+                return false
+            }
+            let accepted: Bool = await withCheckedContinuation { c in
                 var window: UIHostingController<HostAuthKeyMismatch>!
-                
-                window = UIHostingController<HostAuthKeyMismatch>(rootView: HostAuthKeyMismatch(alias: self.host.alias, hostString: self.getHostName(host: host), fingerprint: fingerprint, callback: {
-                    window.dismiss(animated: true, completion: {
-                        c.resume()
-                    })
-                    
+                window = UIHostingController<HostAuthKeyMismatch>(rootView: HostAuthKeyMismatch(alias: self.host.alias, hostString: self.getHostName(host: host), fingerprint: fingerprint, cancelCallback: {
+                    window.dismiss(animated: true, completion: { c.resume (returning: false) })
+                }, acceptCallback: {
+                    window.dismiss(animated: true, completion: { c.resume (returning: true) })
                 }))
                 parent.present(window, animated: true, completion: nil)
             }
+            if accepted {
+                await replaceKnownHostKey (hostKeyType: hostKeyType, key: key)
+            }
+            return accepted
         }
         
         let _ = await knownHosts.readFile (filename: DataStore.shared.knownHostsPath)
@@ -323,7 +352,11 @@ class Session: CustomDebugStringConvertible, Equatable {
             return false
 
         case .keyMismatch:
-            await showHostKeyMismatch (fingerprint: await getFingerPrint())
+            logConnection ("SSH: host key does not match known_hosts, asking user")
+            if await showHostKeyMismatch (hostKeyType: hostKeyType, key: keyAndType.key, fingerprint: await getFingerPrint()) {
+                logConnection ("SSH: user accepted the new host key")
+                return true
+            }
             await disconnect(description: "Known host key mismatch")
             return false
         case .match:

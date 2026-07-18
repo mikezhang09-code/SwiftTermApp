@@ -39,9 +39,32 @@ func getParentViewController (hint: UIResponder? = nil) -> UIViewController? {
             return viewController
         }
     }
-    
+
     // playing with fire here
     return getCurrentKeyWindow()?.rootViewController
+}
+
+/// Like `getParentViewController`, but retries for a short while before giving up.
+///
+/// On the very first connection to a host the SSH handshake can reach the host-key
+/// prompt before the terminal view is attached to a window (and before the key window
+/// has settled after the navigation push), so a single lookup returns nil and the
+/// prompt is silently skipped.  Waiting a few hundred milliseconds lets the view
+/// hierarchy settle so the dialog can actually be presented.
+@MainActor
+func awaitParentViewController (hint: UIResponder? = nil, timeout: TimeInterval = 3.0) async -> UIViewController? {
+    let deadline = Date ().addingTimeInterval (timeout)
+    while true {
+        // Prefer a presentable controller: one that is in a window and not mid-transition
+        if let vc = getParentViewController (hint: hint), vc.viewIfLoaded?.window != nil {
+            return vc
+        }
+        if Date () >= deadline {
+            // Last resort: whatever we can find, even if not ideally attached
+            return getParentViewController (hint: hint)
+        }
+        try? await Task.sleep (nanoseconds: 100_000_000)
+    }
 }
 
 

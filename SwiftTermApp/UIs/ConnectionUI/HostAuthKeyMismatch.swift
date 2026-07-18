@@ -12,10 +12,13 @@ struct HostAuthKeyMismatch: View {
     @State var alias: String
     @State var hostString: String
     @State var fingerprint: String
-    var callback: () -> ()
-    
+    var cancelCallback: () -> ()
+    var acceptCallback: () -> ()
+
     var body: some View {
-        VStack (alignment: .leading){
+        // Header, scrollable explanation, and pinned buttons — same layout discipline as
+        // HostAuthUnknown, so the actions stay reachable on a fixed-size iPad sheet.
+        VStack (spacing: 0) {
             HStack (alignment: .top){
                 Image (systemName: "exclamationmark.triangle")
                     .resizable()
@@ -28,35 +31,36 @@ struct HostAuthKeyMismatch: View {
                         .padding([.bottom])
                     Text ("**Host:** \(alias)")
                         .font(.subheadline)
-                        
                 }
                 Spacer ()
             }
             .padding()
             .background(.yellow)
-            VStack {
-                Text ("**It is possible that someone is doing something nasty**.\n\nSomeone could be eavesdropping on you right now (man-in-the-middle attack).\n\nIt is also possible that the host key has just been changed. The fingerprint for the RSA key sent by the remote host is:\n\n`\(fingerprint)`\n\nContact your system administrator to verify.\n\nIf this is expected, you can remove the existing known key from the Known Hosts settings.")
-                    .padding ([.bottom])
-                    .minimumScaleFactor(0.4)
-                
-                Button ("Go Back", role: .cancel) { callback () }
+
+            ScrollView {
+                Text ("**It is possible that someone is doing something nasty**.\n\nSomeone could be eavesdropping on you right now (man-in-the-middle attack).\n\nIt is also possible that the host key has just been changed, for example if the server was reinstalled. The fingerprint for the key sent by the remote host is:\n\n`\(fingerprint)`\n\nOnly accept the new key if you were expecting this change. Otherwise, go back.")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding ()
+            }
+
+            Divider ()
+            HStack (alignment: .center, spacing: 20) {
+                Button ("Go Back", role: .cancel) { cancelCallback () }
                     .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+
+                Button ("Accept New Key", role: .destructive) { acceptCallback () }
+                    .buttonStyle(.bordered)
                     .controlSize(.large)
                     .tint(Color.red)
             }
             .padding()
         }
-        .toolbar {
-            ToolbarItem (placement: .navigationBarTrailing) {
-                Button ("Go Back") {
-                    callback ()
-                }
-            }
-        }
-    }}
+    }
+}
 
 struct HostAuthKeyMismatch_Previews: PreviewProvider {
     static var previews: some View {
-        HostAuthKeyMismatch(alias: "mac", hostString: "localhost:20", fingerprint: "ECDSA SHA256:AAAAB3NzaC1yc2EAAAADAQABAAABgQDCOFP4DoqHmagF") {}
+        HostAuthKeyMismatch(alias: "mac", hostString: "localhost:20", fingerprint: "ECDSA SHA256:AAAAB3NzaC1yc2EAAAADAQABAAABgQDCOFP4DoqHmagF", cancelCallback: {}, acceptCallback: {})
     }
 }
