@@ -936,7 +936,9 @@ struct PortForwardRow: View {
         } message: {
             Text (testResult)
         }
-        .sheet (isPresented: $showBrowser) {
+        // Full-screen so the browser uses the whole display rather than a small
+        // form-sheet card on iPad
+        .fullScreenCover (isPresented: $showBrowser) {
             if #available(iOS 17.0, *) {
                 SocksBrowserView (localPort: forward.localPort)
             }
