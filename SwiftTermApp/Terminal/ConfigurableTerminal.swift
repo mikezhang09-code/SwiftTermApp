@@ -75,6 +75,7 @@ struct ConfigurableUITerminal: View {
     @State var showClose: Bool = false
     @State var showFiles: Bool = false
     @State var showForwards: Bool = false
+    @State var showAi: Bool = false
 
     func topMostViewController (_ t: UIViewController) -> UIViewController {
         if let presented = t.presentedViewController {
@@ -121,6 +122,9 @@ struct ConfigurableUITerminal: View {
                         Button (action: { self.showForwards = true }) {
                             Image(systemName: "arrow.left.arrow.right")
                         }
+                        Button (action: { self.showAi = true }) {
+                            Image(systemName: "sparkles")
+                        }
                         Button (action: { self.showConfig = true }) {
                             Image(systemName: "gearshape")
                         }
@@ -156,6 +160,13 @@ struct ConfigurableUITerminal: View {
                 }
             }) {
                 PortForwardsView (host: terminalView?.host ?? host!, terminalGetter: terminalGetter)
+            }
+            .sheet (isPresented: $showAi, onDismiss: {
+                if let visible = TerminalViewController.visibleTerminal {
+                    _ = visible.becomeFirstResponder()
+                }
+            }) {
+                AiExplainView (terminalGetter: terminalGetter)
             }
     }
 }

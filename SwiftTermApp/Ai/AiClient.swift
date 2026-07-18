@@ -153,6 +153,93 @@ struct AiClient {
         return modelListResult (ids: ids) { $0 == config.model }
     }
 
+    // MARK: - Streaming chat
+
+    /// Builds the streaming request and the provider-specific extractor that
+    /// turns one SSE event payload into a text delta (nil = not a text event)
+    func chatRequest (system: String, user: String) throws -> (URLRequest, (Data) -> String?) {
+        guard !apiKey.isEmpty else { throw AiClientError.emptyKey }
+        switch config.kind {
+        case .anthropic:
+            guard let url = endpoint ("/v1/messages") else { throw AiClientError.badUrl (config.baseUrl) }
+            var request = URLRequest (url: url)
+            request.httpMethod = "POST"
+            request.setValue (apiKey, forHTTPHeaderField: "x-api-key")
+            request.setValue ("2023-06-01", forHTTPHeaderField: "anthropic-version")
+            request.setValue ("application/json", forHTTPHeaderField: "Content-Type")
+            let body: [String: Any] = [
+                "model": config.model,
+                "max_tokens": 4096,
+                "stream": true,
+                "system": system,
+                "messages": [["role": "user", "content": user]]
+            ]
+            request.httpBody = try JSONSerialization.data (withJSONObject: body)
+            return (request, { data in
+                guard let json = try? JSONSerialization.jsonObject (with: data) as? [String: Any],
+                      json ["type"] as? String == "content_block_delta",
+                      let delta = json ["delta"] as? [String: Any],
+                      delta ["type"] as? String == "text_delta" else { return nil }
+                return delta ["text"] as? String
+            })
+        case .openai:
+            guard let url = endpoint ("/chat/completions") else { throw AiClientError.badUrl (config.baseUrl) }
+            var request = URLRequest (url: url)
+            request.httpMethod = "POST"
+            request.setValue ("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+            request.setValue ("application/json", forHTTPHeaderField: "Content-Type")
+            let body: [String: Any] = [
+                "model": config.model,
+                "stream": true,
+                "messages": [
+                    ["role": "system", "content": system],
+                    ["role": "user", "content": user]
+                ]
+            ]
+            request.httpBody = try JSONSerialization.data (withJSONObject: body)
+            return (request, { data in
+                guard let json = try? JSONSerialization.jsonObject (with: data) as? [String: Any],
+                      let choices = json ["choices"] as? [[String: Any]],
+                      let delta = choices.first? ["delta"] as? [String: Any] else { return nil }
+                return delta ["content"] as? String
+            })
+        case .gemini:
+            guard let url = endpoint ("/models/\(config.model):streamGenerateContent?alt=sse") else {
+                throw AiClientError.badUrl (config.baseUrl)
+            }
+            var request = URLRequest (url: url)
+            request.httpMethod = "POST"
+            request.setValue (apiKey, forHTTPHeaderField: "x-goog-api-key")
+            request.setValue ("application/json", forHTTPHeaderField: "Content-Type")
+            let body: [String: Any] = [
+                "systemInstruction": ["parts": [["text": system]]],
+                "contents": [["role": "user", "parts": [["text": user]]]]
+            ]
+            request.httpBody = try JSONSerialization.data (withJSONObject: body)
+            return (request, { data in
+                guard let json = try? JSONSerialization.jsonObject (with: data) as? [String: Any],
+                      let candidates = json ["candidates"] as? [[String: Any]],
+                      let content = candidates.first? ["content"] as? [String: Any],
+                      let parts = content ["parts"] as? [[String: Any]] else { return nil }
+                let text = parts.compactMap { $0 ["text"] as? String }.joined ()
+                return text.isEmpty ? nil : text
+            })
+        }
+    }
+
+    /// Starts a streaming chat call; deltas and completion arrive on the main queue
+    func chat (system: String, user: String, onDelta: @escaping (String) -> Void, onDone: @escaping (Result<Void, Error>) -> Void) -> AiChatStream? {
+        do {
+            let (request, extract) = try chatRequest (system: system, user: user)
+            let stream = AiChatStream (request: request, extract: extract, onDelta: onDelta, onDone: onDone)
+            stream.start ()
+            return stream
+        } catch {
+            onDone (.failure (error))
+            return nil
+        }
+    }
+
     func testGemini () async throws -> AiTestResult {
         guard let url = endpoint ("/models") else { throw AiClientError.badUrl (config.baseUrl) }
         var request = URLRequest (url: url)
@@ -168,5 +255,95 @@ struct AiClient {
         // Gemini model names come back as "models/gemini-..."
         let ids = list.compactMap { $0 ["name"] as? String }
         return modelListResult (ids: ids) { $0 == config.model || $0 == "models/\(config.model)" }
+    }
+}
+
+/// Reads a server-sent-events response and forwards text deltas.
+/// Delegate-based because URLSession.bytes(for:) requires iOS 15;
+/// callbacks are delivered on the main queue.
+final class AiChatStream: NSObject, URLSessionDataDelegate {
+    let request: URLRequest
+    let extract: (Data) -> String?
+    let onDelta: (String) -> Void
+    let onDone: (Result<Void, Error>) -> Void
+
+    var session: URLSession!
+    var task: URLSessionDataTask?
+    var buffer = Data ()
+    var httpStatus = 200
+    var errorBody = Data ()
+    var finished = false
+
+    init (request: URLRequest, extract: @escaping (Data) -> String?, onDelta: @escaping (String) -> Void, onDone: @escaping (Result<Void, Error>) -> Void) {
+        self.request = request
+        self.extract = extract
+        self.onDelta = onDelta
+        self.onDone = onDone
+        super.init ()
+        let queue = OperationQueue.main
+        session = URLSession (configuration: .default, delegate: self, delegateQueue: queue)
+    }
+
+    func start () {
+        task = session.dataTask (with: request)
+        task?.resume ()
+    }
+
+    func cancel () {
+        finished = true
+        task?.cancel ()
+        session.invalidateAndCancel ()
+    }
+
+    public func urlSession (_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse, completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
+        if let http = response as? HTTPURLResponse {
+            httpStatus = http.statusCode
+        }
+        completionHandler (.allow)
+    }
+
+    public func urlSession (_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+        if httpStatus != 200 {
+            errorBody.append (data)
+            return
+        }
+        buffer.append (data)
+        processBuffer ()
+    }
+
+    func processBuffer () {
+        // SSE: events are lines, "data: {json}" carries the payload
+        while let newline = buffer.firstIndex (of: UInt8 (ascii: "\n")) {
+            let lineData = buffer.subdata (in: buffer.startIndex..<newline)
+            buffer.removeSubrange (buffer.startIndex...newline)
+            guard var line = String (bytes: lineData, encoding: .utf8) else { continue }
+            if line.hasSuffix ("\r") {
+                line = String (line.dropLast ())
+            }
+            guard line.hasPrefix ("data:") else { continue }
+            var payload = String (line.dropFirst (5))
+            if payload.hasPrefix (" ") {
+                payload = String (payload.dropFirst ())
+            }
+            if payload == "[DONE]" { continue }
+            if let delta = extract (Data (payload.utf8)), !delta.isEmpty {
+                onDelta (delta)
+            }
+        }
+    }
+
+    public func urlSession (_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        if finished { return }
+        finished = true
+        defer { self.session.finishTasksAndInvalidate () }
+        if let error = error {
+            onDone (.failure (error))
+            return
+        }
+        if httpStatus != 200 {
+            onDone (.failure (AiClientError.http (httpStatus, String (bytes: errorBody, encoding: .utf8) ?? "")))
+            return
+        }
+        onDone (.success (()))
     }
 }

@@ -33,6 +33,8 @@
 		FA57B10FE5D1AB0000000011 /* AiProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B10FE5D1AB0000000010 /* AiProvider.swift */; };
 		FA57B10FE5D1AB0000000013 /* AiClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B10FE5D1AB0000000012 /* AiClient.swift */; };
 		FA57B10FE5D1AB0000000015 /* AiSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B10FE5D1AB0000000014 /* AiSettingsView.swift */; };
+		FA57B10FE5D1AB0000000018 /* Redactor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B10FE5D1AB0000000017 /* Redactor.swift */; };
+		FA57B10FE5D1AB000000001A /* AiExplainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B10FE5D1AB0000000019 /* AiExplainView.swift */; };
 		49184C5D27BC1BA900335BFB /* ConnectionMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49184C5C27BC1BA900335BFB /* ConnectionMessage.swift */; };
 		49184C5F27BC1CAA00335BFB /* GenericConnectionIssue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49184C5E27BC1CAA00335BFB /* GenericConnectionIssue.swift */; };
 		4923C56627319336000CC371 /* LocationTracking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4923C56527319336000CC371 /* LocationTracking.swift */; };
@@ -166,6 +168,8 @@
 		FA57B10FE5D1AB0000000010 /* AiProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiProvider.swift; sourceTree = "<group>"; };
 		FA57B10FE5D1AB0000000012 /* AiClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiClient.swift; sourceTree = "<group>"; };
 		FA57B10FE5D1AB0000000014 /* AiSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiSettingsView.swift; sourceTree = "<group>"; };
+		FA57B10FE5D1AB0000000017 /* Redactor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Redactor.swift; sourceTree = "<group>"; };
+		FA57B10FE5D1AB0000000019 /* AiExplainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiExplainView.swift; sourceTree = "<group>"; };
 		FA57B10FE5D1AB0000000008 /* ios_system */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ios_system; path = LocalPackages/ios_system; sourceTree = "<group>"; };
 		FA57B10FE5D1AB000000000A /* commandDictionary.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = commandDictionary.plist; sourceTree = "<group>"; };
 		49184C5C27BC1BA900335BFB /* ConnectionMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionMessage.swift; sourceTree = "<group>"; };
@@ -554,6 +558,8 @@
 				FA57B10FE5D1AB0000000010 /* AiProvider.swift */,
 				FA57B10FE5D1AB0000000012 /* AiClient.swift */,
 				FA57B10FE5D1AB0000000014 /* AiSettingsView.swift */,
+				FA57B10FE5D1AB0000000017 /* Redactor.swift */,
+				FA57B10FE5D1AB0000000019 /* AiExplainView.swift */,
 			);
 			path = Ai;
 			sourceTree = "<group>";
@@ -876,6 +882,8 @@
 				FA57B10FE5D1AB0000000011 /* AiProvider.swift in Sources */,
 				FA57B10FE5D1AB0000000013 /* AiClient.swift in Sources */,
 				FA57B10FE5D1AB0000000015 /* AiSettingsView.swift in Sources */,
+				FA57B10FE5D1AB0000000018 /* Redactor.swift in Sources */,
+				FA57B10FE5D1AB000000001A /* AiExplainView.swift in Sources */,
 				49BA35982676EEB600B63510 /* KeyTools.swift in Sources */,
 				49BA359A2676EFD200B63510 /* CreateLocalKeyButtons.swift in Sources */,
 				49A0A2C2249298BF002593F7 /* DigitalBrain.metal in Sources */,
