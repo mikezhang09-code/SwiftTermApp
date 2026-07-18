@@ -334,6 +334,123 @@ private final class ReverseTunnelConnection {
     }
 }
 
+// MARK: - SOCKS self-test
+
+/// Connects to a running SOCKS5 forward as a client, performs the handshake and an
+/// HTTP request to a well-known host, and reports whether the response came back.
+/// This exercises the whole chain: listener → SOCKS negotiation → direct-tcpip
+/// channel → SSH server → destination → back, so a success proves the proxy works.
+private final class SocksProbe {
+    private let nw: NWConnection
+    private let targetHost: String
+    private let targetPort: Int
+    private let completion: (Bool, String) -> ()
+    private var done = false
+    private let queue = DispatchQueue (label: "socks-probe")
+
+    init (localPort: Int, targetHost: String, targetPort: Int, completion: @escaping (Bool, String) -> ()) {
+        self.targetHost = targetHost
+        self.targetPort = targetPort
+        self.completion = completion
+        let port = NWEndpoint.Port (rawValue: UInt16 (localPort)) ?? 8080
+        self.nw = NWConnection (host: .ipv4 (.loopback), port: port, using: .tcp)
+    }
+
+    func run () {
+        queue.asyncAfter (deadline: .now () + 12) { [weak self] in
+            self?.finish (false, "Timed out — no response came back through the proxy.")
+        }
+        nw.stateUpdateHandler = { [weak self] state in
+            switch state {
+            case .ready:
+                self?.sendGreeting ()
+            case .failed (let e):
+                self?.finish (false, "Could not connect to the proxy: \(e.localizedDescription)")
+            default:
+                break
+            }
+        }
+        nw.start (queue: queue)
+    }
+
+    private func sendGreeting () {
+        // SOCKS5, one method: no authentication
+        nw.send (content: Data ([0x05, 0x01, 0x00]), completion: .contentProcessed { [weak self] _ in
+            self?.readGreetingReply ()
+        })
+    }
+
+    private func readGreetingReply () {
+        nw.receive (minimumIncompleteLength: 2, maximumLength: 2) { [weak self] data, _, _, _ in
+            guard let self else { return }
+            let b = data.map { [UInt8] ($0) } ?? []
+            guard b.count >= 2, b [0] == 0x05, b [1] == 0x00 else {
+                return self.finish (false, "The proxy did not accept the SOCKS5 handshake.")
+            }
+            self.sendConnect ()
+        }
+    }
+
+    private func sendConnect () {
+        // CONNECT to targetHost:targetPort using a domain-name address
+        var req: [UInt8] = [0x05, 0x01, 0x00, 0x03]
+        let host = Array (targetHost.utf8)
+        req.append (UInt8 (host.count))
+        req.append (contentsOf: host)
+        req.append (UInt8 (targetPort >> 8))
+        req.append (UInt8 (targetPort & 0xff))
+        nw.send (content: Data (req), completion: .contentProcessed { [weak self] _ in
+            self?.readConnectReply ()
+        })
+    }
+
+    private func readConnectReply () {
+        nw.receive (minimumIncompleteLength: 10, maximumLength: 512) { [weak self] data, _, _, _ in
+            guard let self else { return }
+            let b = data.map { [UInt8] ($0) } ?? []
+            guard b.count >= 2, b [0] == 0x05 else {
+                return self.finish (false, "No reply to the SOCKS5 connect request.")
+            }
+            guard b [1] == 0x00 else {
+                return self.finish (false, "The proxy could not reach \(self.targetHost):\(self.targetPort) (SOCKS error \(b [1])). The SSH server may lack internet access.")
+            }
+            self.sendHttp ()
+        }
+    }
+
+    private func sendHttp () {
+        let req = "GET / HTTP/1.0\r\nHost: \(targetHost)\r\nConnection: close\r\n\r\n"
+        nw.send (content: Data (req.utf8), completion: .contentProcessed { [weak self] _ in
+            self?.readHttp ()
+        })
+    }
+
+    private func readHttp () {
+        nw.receive (minimumIncompleteLength: 1, maximumLength: 1024) { [weak self] data, _, _, _ in
+            guard let self else { return }
+            guard let data, !data.isEmpty else {
+                return self.finish (false, "Connected through the proxy, but \(self.targetHost) sent nothing back.")
+            }
+            let text = String (decoding: data, as: UTF8.self)
+            if text.hasPrefix ("HTTP/") {
+                let statusLine = text.split (whereSeparator: { $0 == "\r" || $0 == "\n" }).first.map (String.init) ?? "HTTP response"
+                self.finish (true, "✓ Reached \(self.targetHost) through the proxy.\n\(statusLine)")
+            } else {
+                self.finish (true, "✓ The tunnel carried data back from \(self.targetHost).")
+            }
+        }
+    }
+
+    private func finish (_ ok: Bool, _ msg: String) {
+        queue.async {
+            if self.done { return }
+            self.done = true
+            self.nw.cancel ()
+            DispatchQueue.main.async { self.completion (ok, msg) }
+        }
+    }
+}
+
 // MARK: - A running forward
 
 final class PortForward: ObservableObject, Identifiable {
@@ -357,6 +474,23 @@ final class PortForward: ObservableObject, Identifiable {
     @Published var active = false
     @Published var status = ""
     @Published var openConnections = 0
+    @Published var testing = false
+
+    private var probe: SocksProbe?
+
+    /// Verifies a running SOCKS forward by driving a real request through it.
+    func testSocks (completion: @escaping (Bool, String) -> ()) {
+        guard kind == .dynamic else { completion (false, "Test is only available for SOCKS forwards."); return }
+        guard active else { completion (false, "Turn the forward on first."); return }
+        DispatchQueue.main.async { self.testing = true }
+        let probe = SocksProbe (localPort: localPort, targetHost: "example.com", targetPort: 80) { [weak self] ok, msg in
+            self?.probe = nil
+            DispatchQueue.main.async { self?.testing = false }
+            completion (ok, msg)
+        }
+        self.probe = probe
+        probe.run ()
+    }
 
     init (def: PortForwardDef, session: Session?) {
         self.id = def.id
@@ -742,6 +876,8 @@ struct PortForwardsView: View {
 
 struct PortForwardRow: View {
     @ObservedObject var forward: PortForward
+    @State private var testResult: String = ""
+    @State private var showTestResult = false
 
     var body: some View {
         HStack {
@@ -762,12 +898,35 @@ struct PortForwardRow: View {
                 }
             }
             Spacer ()
+            // For a running SOCKS proxy, offer a one-tap end-to-end test — the only
+            // practical way to verify it on iOS, where there is no system SOCKS setting
+            if forward.kind == .dynamic && forward.active {
+                if forward.testing {
+                    ProgressView ()
+                        .padding (.trailing, 6)
+                } else {
+                    Button ("Test") {
+                        forward.testSocks { _, msg in
+                            testResult = msg
+                            showTestResult = true
+                        }
+                    }
+                    .buttonStyle (.bordered)
+                    .font (.caption)
+                    .padding (.trailing, 6)
+                }
+            }
             Toggle ("", isOn: Binding (
                 get: { forward.active },
                 set: { on in
                     if on { forward.start () } else { forward.stop () }
                 }))
             .labelsHidden ()
+        }
+        .alert ("Proxy Test", isPresented: $showTestResult) {
+            Button ("OK") { }
+        } message: {
+            Text (testResult)
         }
     }
 }
