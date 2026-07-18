@@ -483,7 +483,7 @@ final class PortForward: ObservableObject, Identifiable {
         guard kind == .dynamic else { completion (false, "Test is only available for SOCKS forwards."); return }
         guard active else { completion (false, "Turn the forward on first."); return }
         DispatchQueue.main.async { self.testing = true }
-        let probe = SocksProbe (localPort: localPort, targetHost: "example.com", targetPort: 80) { [weak self] ok, msg in
+        let probe = SocksProbe (localPort: localPort, targetHost: "www.google.com", targetPort: 80) { [weak self] ok, msg in
             self?.probe = nil
             DispatchQueue.main.async { self?.testing = false }
             completion (ok, msg)
