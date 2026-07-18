@@ -64,6 +64,42 @@ class UITests: XCTestCase {
         print ("HIERARCHY-END")
     }
 
+    func testAiSettingsOpens() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        let dismiss = app.buttons["Dismiss"]
+        if dismiss.waitForExistence(timeout: 5) {
+            dismiss.tap()
+        }
+
+        // Reveal the sidebar if it launched collapsed (iPad split view)
+        let link = app.staticTexts["AI"].firstMatch
+        if !link.waitForExistence(timeout: 3) {
+            app.navigationBars.buttons.firstMatch.tap()
+        }
+        XCTAssertTrue (link.waitForExistence(timeout: 10), "AI entry not found on Home")
+        link.tap()
+
+        XCTAssertTrue (app.navigationBars["AI Providers"].waitForExistence(timeout: 5), "AI Providers screen did not open")
+
+        // Add an Anthropic provider from the + menu and check the editor shows
+        app.navigationBars["AI Providers"].buttons.firstMatch.tap()
+        let anthropic = app.buttons["Anthropic"].firstMatch
+        XCTAssertTrue (anthropic.waitForExistence(timeout: 5), "Add-provider menu did not open")
+        anthropic.tap()
+
+        XCTAssertTrue (app.textFields["Base URL"].waitForExistence(timeout: 5), "Provider editor did not open")
+        XCTAssertTrue (app.secureTextFields["API key"].exists, "API key field missing")
+        XCTAssertTrue (app.buttons["Test"].exists, "Test button missing")
+
+        let attachment = XCTAttachment (screenshot: app.screenshot ())
+        attachment.lifetime = .keepAlways
+        add (attachment)
+
+        app.buttons["Cancel"].tap()
+    }
+
     //let password = try String (contentsOf: URL (fileURLWithPath: "/Users/miguel/password"))
 
     func testAddHostLoginPassword() throws {

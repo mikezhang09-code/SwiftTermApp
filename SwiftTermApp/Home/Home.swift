@@ -238,6 +238,11 @@ struct HomeView: View {
                         Label ("Snippets", systemImage: "note.text")
                     })
                 NavigationLink(
+                    destination: AiSettingsView(),
+                    label: {
+                        Label("AI", systemImage: "sparkles")
+                    })
+                NavigationLink(
                     destination: SettingsView(),
                     label: {
                         Label("Settings", systemImage: "gear")

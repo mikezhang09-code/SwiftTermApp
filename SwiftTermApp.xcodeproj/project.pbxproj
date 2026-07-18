@@ -30,6 +30,9 @@
 		FA57B10FE5D1AB0000000007 /* LocalTerminal.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B10FE5D1AB0000000006 /* LocalTerminal.swift */; };
 		FA57B10FE5D1AB000000000C /* PortForwarding.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B10FE5D1AB000000000B /* PortForwarding.swift */; };
 		FA57B10FE5D1AB000000000E /* SocksBrowser.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B10FE5D1AB000000000D /* SocksBrowser.swift */; };
+		FA57B10FE5D1AB0000000011 /* AiProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B10FE5D1AB0000000010 /* AiProvider.swift */; };
+		FA57B10FE5D1AB0000000013 /* AiClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B10FE5D1AB0000000012 /* AiClient.swift */; };
+		FA57B10FE5D1AB0000000015 /* AiSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B10FE5D1AB0000000014 /* AiSettingsView.swift */; };
 		49184C5D27BC1BA900335BFB /* ConnectionMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49184C5C27BC1BA900335BFB /* ConnectionMessage.swift */; };
 		49184C5F27BC1CAA00335BFB /* GenericConnectionIssue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49184C5E27BC1CAA00335BFB /* GenericConnectionIssue.swift */; };
 		4923C56627319336000CC371 /* LocationTracking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4923C56527319336000CC371 /* LocationTracking.swift */; };
@@ -160,6 +163,9 @@
 		FA57B10FE5D1AB0000000006 /* LocalTerminal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalTerminal.swift; sourceTree = "<group>"; };
 		FA57B10FE5D1AB000000000B /* PortForwarding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortForwarding.swift; sourceTree = "<group>"; };
 		FA57B10FE5D1AB000000000D /* SocksBrowser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocksBrowser.swift; sourceTree = "<group>"; };
+		FA57B10FE5D1AB0000000010 /* AiProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiProvider.swift; sourceTree = "<group>"; };
+		FA57B10FE5D1AB0000000012 /* AiClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiClient.swift; sourceTree = "<group>"; };
+		FA57B10FE5D1AB0000000014 /* AiSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiSettingsView.swift; sourceTree = "<group>"; };
 		FA57B10FE5D1AB0000000008 /* ios_system */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ios_system; path = LocalPackages/ios_system; sourceTree = "<group>"; };
 		FA57B10FE5D1AB000000000A /* commandDictionary.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = commandDictionary.plist; sourceTree = "<group>"; };
 		49184C5C27BC1BA900335BFB /* ConnectionMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionMessage.swift; sourceTree = "<group>"; };
@@ -341,6 +347,7 @@
 				4901167D2455378A002C1F85 /* Preview Content */,
 				49F073E7247B6B5E00A83CDC /* Sessions */,
 				49F0740A2481B3D100A83CDC /* Settings */,
+				FA57B10FE5D1AB0000000016 /* Ai */,
 				4943DA5427EE42FA00E4E2F5 /* Snippets */,
 				493F4F2E27613F0F00838AC7 /* Ssh */,
 				49C1B6B3246260C000D54F6F /* Terminal */,
@@ -539,6 +546,16 @@
 				49BA35EC267BE7AB00B63510 /* HostKeysList.swift */,
 			);
 			path = HostKeys;
+			sourceTree = "<group>";
+		};
+		FA57B10FE5D1AB0000000016 /* Ai */ = {
+			isa = PBXGroup;
+			children = (
+				FA57B10FE5D1AB0000000010 /* AiProvider.swift */,
+				FA57B10FE5D1AB0000000012 /* AiClient.swift */,
+				FA57B10FE5D1AB0000000014 /* AiSettingsView.swift */,
+			);
+			path = Ai;
 			sourceTree = "<group>";
 		};
 		49C1B6B3246260C000D54F6F /* Terminal */ = {
@@ -856,6 +873,9 @@
 				FA57B10FE5D1AB0000000007 /* LocalTerminal.swift in Sources */,
 				FA57B10FE5D1AB000000000C /* PortForwarding.swift in Sources */,
 				FA57B10FE5D1AB000000000E /* SocksBrowser.swift in Sources */,
+				FA57B10FE5D1AB0000000011 /* AiProvider.swift in Sources */,
+				FA57B10FE5D1AB0000000013 /* AiClient.swift in Sources */,
+				FA57B10FE5D1AB0000000015 /* AiSettingsView.swift in Sources */,
 				49BA35982676EEB600B63510 /* KeyTools.swift in Sources */,
 				49BA359A2676EFD200B63510 /* CreateLocalKeyButtons.swift in Sources */,
 				49A0A2C2249298BF002593F7 /* DigitalBrain.metal in Sources */,
