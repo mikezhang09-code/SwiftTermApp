@@ -500,6 +500,29 @@ actor SessionActor {
             libssh2_channel_direct_tcpip_ex(self.sessionHandle, host, port, originatingHost, originatingPort)
         }
     }
+
+    /// Asks the SSH server to start listening on `host`:`port` and forward inbound
+    /// connections back over the session (the "ssh -R" flow).  Returns a listener handle.
+    public func forwardListen (host: String?, port: Int32) async -> OpaquePointer? {
+        var boundPort: Int32 = 0
+        return await callSshPtr {
+            libssh2_channel_forward_listen_ex(self.sessionHandle, host, port, &boundPort, 16)
+        }
+    }
+
+    /// Accepts the next connection forwarded by the server for the given listener.
+    /// Suspends (via the EAGAIN retry machinery) until one arrives.
+    public func forwardAccept (listener: OpaquePointer) async -> OpaquePointer? {
+        return await callSshPtr {
+            libssh2_channel_forward_accept(listener)
+        }
+    }
+
+    public func forwardCancel (listener: OpaquePointer) async {
+        let _ = await callSsh {
+            libssh2_channel_forward_cancel(listener)
+        }
+    }
     
     // MARK: SFTP APIs
     public func openSftp () async -> OpaquePointer? {

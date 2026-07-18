@@ -740,6 +740,25 @@ class Session: CustomDebugStringConvertible, Equatable {
         }
         return Channel (session: self, channelHandle: channelHandle, readCallback: readCallback, type: "tunnel")
     }
+
+    /// Requests that the server open a listening port and forward connections back to
+    /// us (the "ssh -R" flow).  Returns an opaque listener handle, or nil on error.
+    public func forwardListen (host: String?, port: Int32) async -> OpaquePointer? {
+        return await sessionActor.forwardListen (host: host, port: port)
+    }
+
+    /// Accepts the next server-forwarded connection on `listener`, wrapping it as a
+    /// Channel.  Suspends until a connection arrives (or the session drops).
+    public func forwardAccept (listener: OpaquePointer, readCallback: @escaping (Channel, Data?, Data?, Bool)async->()) async -> Channel? {
+        guard let channelHandle = await sessionActor.forwardAccept (listener: listener) else {
+            return nil
+        }
+        return Channel (session: self, channelHandle: channelHandle, readCallback: readCallback, type: "reverse-tunnel")
+    }
+
+    public func forwardCancel (listener: OpaquePointer) async {
+        await sessionActor.forwardCancel (listener: listener)
+    }
     
 
     /// Runs a command on the remote server using the specified language, and delivers the data to the callback
