@@ -2,9 +2,10 @@
 //  AiExplainView.swift
 //  SwiftTermApp
 //
-//  "Explain this" sheet: takes the terminal selection (or the tail of the
-//  buffer), shows exactly what will be sent after redaction, and only sends
-//  when the user taps Send.  The answer streams in from the active provider.
+//  "Explain this" / "Diagnose" sheet: takes the terminal selection (or the
+//  tail of the buffer), shows exactly what will be sent after redaction, and
+//  only sends when the user taps Send.  The answer streams in from the active
+//  provider.  The two modes differ in scrollback size and system prompt.
 //
 
 import SwiftUI
@@ -12,11 +13,75 @@ import SwiftTerm
 
 struct AiExplainView: View {
     var terminalGetter: () -> AppTerminalView?
+    var mode: Mode = .explain
     @ObservedObject var store = AiProviderStore.shared
     @Environment (\.presentationMode) var presentationMode
 
-    /// How many trailing buffer lines to send when there is no selection
-    static let contextLines = 80
+    /// What the sheet is being used for.  Both modes share the capture,
+    /// redaction, preview and streaming machinery; they differ in how much
+    /// context they grab and what they ask the model for.
+    enum Mode {
+        case explain
+        case diagnose
+
+        var title: String {
+            switch self {
+            case .explain: return "Explain"
+            case .diagnose: return "Diagnose"
+            }
+        }
+
+        /// Diagnosis needs more scrollback: the failure is usually several
+        /// commands back from the last prompt
+        var contextLines: Int {
+            switch self {
+            case .explain: return 80
+            case .diagnose: return 150
+            }
+        }
+
+        var questionPlaceholder: String {
+            switch self {
+            case .explain: return "Explain this output"
+            case .diagnose: return "What went wrong and how do I fix it?"
+            }
+        }
+
+        var defaultPrompt: String {
+            switch self {
+            case .explain: return "Explain this terminal output."
+            case .diagnose: return "Something went wrong here.  Diagnose it."
+            }
+        }
+
+        var systemPrompt: String {
+            let shared = """
+                You are an expert systems administrator built into an iOS SSH \
+                client.  The user sends you terminal output, possibly with \
+                sensitive values replaced by placeholders like [IP-1] or \
+                [SECRET-1]; refer to the placeholders as-is and never ask for \
+                the real values.  Answer in the language the user's question is \
+                written in, defaulting to the language of the output.
+                """
+            switch self {
+            case .explain:
+                return shared + """
+                     Explain what the output shows, and when it contains \
+                    errors, give the likely cause and a concrete fix.  Be concise.
+                    """
+            case .diagnose:
+                return shared + """
+                     The output contains a failure.  Structure your answer as: \
+                    (1) what failed — quote the key line; (2) the most likely \
+                    cause, and say plainly when you are inferring rather than \
+                    certain; (3) a concrete next step, as a command to run when \
+                    one applies.  If several causes are plausible, give the \
+                    check that distinguishes them rather than guessing.  If the \
+                    output contains no failure, say so instead of inventing one.
+                    """
+            }
+        }
+    }
 
     @State var source = ""
     @State var usedSelection = false
@@ -32,16 +97,6 @@ struct AiExplainView: View {
         case done
         case failed (String)
     }
-
-    static let systemPrompt = """
-        You are an expert systems administrator built into an iOS SSH client. \
-        The user sends you terminal output, possibly with sensitive values \
-        replaced by placeholders like [IP-1] or [SECRET-1]; refer to the \
-        placeholders as-is.  Explain what the output shows, and when it \
-        contains errors, give the likely cause and a concrete fix.  Be \
-        concise and answer in the language the user's question is written in \
-        (default to the language of the output otherwise).
-        """
 
     var redaction: RedactionResult {
         Redactor.redact (source)
@@ -60,7 +115,7 @@ struct AiExplainView: View {
                     answerScreen
                 }
             }
-            .navigationTitle ("Explain")
+            .navigationTitle (mode.title)
             .navigationBarTitleDisplayMode (.inline)
             .toolbar {
                 ToolbarItem (placement: .cancellationAction) {
@@ -94,7 +149,7 @@ struct AiExplainView: View {
 
     var previewForm: some View {
         Form {
-            Section (header: Text (usedSelection ? "Selection" : "Last \(AiExplainView.contextLines) lines"),
+            Section (header: Text (usedSelection ? "Selection" : "Last \(mode.contextLines) lines"),
                      footer: redactionFooter) {
                 ScrollView {
                     Text (textToSend.isEmpty ? "Nothing captured from the terminal" : textToSend)
@@ -105,7 +160,7 @@ struct AiExplainView: View {
                 Toggle ("Redact sensitive values", isOn: $redactEnabled)
             }
             Section (header: Text ("Question (optional)")) {
-                TextField ("Explain this output", text: $question)
+                TextField (mode.questionPlaceholder, text: $question)
             }
             Section {
                 if let provider = store.active {
@@ -130,7 +185,7 @@ struct AiExplainView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack (alignment: .leading, spacing: 12) {
-                    Text (question.isEmpty ? "Explain this terminal output" : question)
+                    Text (question.isEmpty ? mode.defaultPrompt : question)
                         .font (.caption)
                         .foregroundColor (.secondary)
                     if case .failed (let message) = phase {
@@ -187,18 +242,18 @@ struct AiExplainView: View {
         while let last = trimmed.last, last.isEmpty {
             trimmed.removeLast ()
         }
-        source = trimmed.suffix (AiExplainView.contextLines).joined (separator: "\n")
+        source = trimmed.suffix (mode.contextLines).joined (separator: "\n")
         usedSelection = false
     }
 
     func send () {
         guard let provider = store.active else { return }
         let client = AiClient (config: provider, apiKey: store.apiKey (for: provider))
-        let prompt = (question.isEmpty ? "Explain this terminal output." : question)
+        let prompt = (question.isEmpty ? mode.defaultPrompt : question)
             + "\n\nTerminal output:\n```\n" + textToSend + "\n```"
         answer = ""
         phase = .streaming
-        stream = client.chat (system: AiExplainView.systemPrompt, user: prompt, onDelta: { delta in
+        stream = client.chat (system: mode.systemPrompt, user: prompt, onDelta: { delta in
             answer += delta
         }, onDone: { result in
             switch result {

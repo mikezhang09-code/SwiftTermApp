@@ -291,6 +291,65 @@ class UITests: XCTestCase {
         XCTAssertFalse (app.staticTexts["echo MOCK-CMD"].waitForExistence(timeout: 3), "Sheet did not dismiss")
     }
 
+    /// Diagnose mode: same sheet machinery as Explain, different framing.
+    /// Requires mock_sse.py on 127.0.0.1:8765 and a provider saved by an
+    /// earlier AI test (falls back to creating one).
+    func testDiagnoseEndToEnd() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        let dismiss = app.buttons["Dismiss"]
+        if dismiss.waitForExistence(timeout: 5) {
+            dismiss.tap()
+        }
+
+        let aiLink = app.staticTexts["AI"].firstMatch
+        if !aiLink.waitForExistence(timeout: 3) {
+            app.navigationBars.buttons.firstMatch.tap()
+        }
+        XCTAssertTrue (aiLink.waitForExistence(timeout: 10))
+        aiLink.tap()
+        XCTAssertTrue (app.navigationBars["AI Providers"].waitForExistence(timeout: 5))
+        let activate = app.images["ai-activate-OpenAI-compatible"].firstMatch
+        XCTAssertTrue (activate.waitForExistence(timeout: 5), "Run testExplainEndToEnd first to create the mock provider")
+        activate.tap()
+
+        app.terminate()
+        app.launch()
+        if dismiss.waitForExistence(timeout: 5) {
+            dismiss.tap()
+        }
+        let terminalLink = app.staticTexts["Local Terminal"].firstMatch
+        if !terminalLink.waitForExistence(timeout: 3) {
+            app.navigationBars.buttons.firstMatch.tap()
+        }
+        XCTAssertTrue (terminalLink.waitForExistence(timeout: 10))
+        terminalLink.tap()
+        sleep (2)
+        app.typeText ("ls /definitely-missing-path\n")
+        usleep (500_000)
+
+        app.buttons["ai-menu"].firstMatch.tap()
+        let diagnoseItem = app.buttons["Diagnose Failure"].firstMatch
+        XCTAssertTrue (diagnoseItem.waitForExistence(timeout: 5), "AI menu did not open")
+        diagnoseItem.tap()
+
+        // Diagnose framing: its own title and a larger scrollback window
+        XCTAssertTrue (app.navigationBars["Diagnose"].waitForExistence(timeout: 5), "Diagnose sheet did not open")
+        XCTAssertTrue (app.staticTexts["Last 150 lines"].exists, "Diagnose should capture more scrollback than Explain")
+
+        let sendButton = app.buttons.matching (NSPredicate (format: "label BEGINSWITH 'Send to'")).firstMatch
+        XCTAssertTrue (sendButton.waitForExistence(timeout: 5))
+        sendButton.tap()
+
+        let answer = app.staticTexts.matching (NSPredicate (format: "label CONTAINS 'openai-mock'")).firstMatch
+        XCTAssertTrue (answer.waitForExistence(timeout: 15), "Streamed diagnosis not visible")
+
+        let attachment = XCTAttachment (screenshot: app.screenshot ())
+        attachment.lifetime = .keepAlways
+        add (attachment)
+    }
+
     //let password = try String (contentsOf: URL (fileURLWithPath: "/Users/miguel/password"))
 
     func testAddHostLoginPassword() throws {

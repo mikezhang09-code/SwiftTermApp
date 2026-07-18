@@ -303,6 +303,7 @@ struct LocalTerminalHost: UIViewControllerRepresentable {
 struct LocalTerminalPage: View {
     @State var showAi = false
     @State var showAiCommand = false
+    @State var showAiDiagnose = false
 
     var body: some View {
         LocalTerminalHost ()
@@ -313,6 +314,10 @@ struct LocalTerminalPage: View {
                             Label ("Explain Output", systemImage: "text.magnifyingglass")
                         }
                         .accessibilityIdentifier ("ai-explain")
+                        Button (action: { showAiDiagnose = true }) {
+                            Label ("Diagnose Failure", systemImage: "stethoscope")
+                        }
+                        .accessibilityIdentifier ("ai-diagnose")
                         Button (action: { showAiCommand = true }) {
                             Label ("Get a Command", systemImage: "wand.and.stars")
                         }
@@ -327,6 +332,11 @@ struct LocalTerminalPage: View {
                 _ = LocalTerminalViewController.visibleTerminal?.becomeFirstResponder ()
             }) {
                 AiExplainView (terminalGetter: { LocalTerminalViewController.visibleTerminal })
+            }
+            .sheet (isPresented: $showAiDiagnose, onDismiss: {
+                _ = LocalTerminalViewController.visibleTerminal?.becomeFirstResponder ()
+            }) {
+                AiExplainView (terminalGetter: { LocalTerminalViewController.visibleTerminal }, mode: .diagnose)
             }
             .sheet (isPresented: $showAiCommand, onDismiss: {
                 _ = LocalTerminalViewController.visibleTerminal?.becomeFirstResponder ()

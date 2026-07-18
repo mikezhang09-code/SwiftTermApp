@@ -77,6 +77,7 @@ struct ConfigurableUITerminal: View {
     @State var showForwards: Bool = false
     @State var showAi: Bool = false
     @State var showAiCommand: Bool = false
+    @State var showAiDiagnose: Bool = false
 
     func topMostViewController (_ t: UIViewController) -> UIViewController {
         if let presented = t.presentedViewController {
@@ -127,6 +128,9 @@ struct ConfigurableUITerminal: View {
                             Button (action: { self.showAi = true }) {
                                 Label ("Explain Output", systemImage: "text.magnifyingglass")
                             }
+                            Button (action: { self.showAiDiagnose = true }) {
+                                Label ("Diagnose Failure", systemImage: "stethoscope")
+                            }
                             Button (action: { self.showAiCommand = true }) {
                                 Label ("Get a Command", systemImage: "wand.and.stars")
                             }
@@ -175,6 +179,13 @@ struct ConfigurableUITerminal: View {
                 }
             }) {
                 AiExplainView (terminalGetter: terminalGetter)
+            }
+            .sheet (isPresented: $showAiDiagnose, onDismiss: {
+                if let visible = TerminalViewController.visibleTerminal {
+                    _ = visible.becomeFirstResponder()
+                }
+            }) {
+                AiExplainView (terminalGetter: terminalGetter, mode: .diagnose)
             }
             .sheet (isPresented: $showAiCommand, onDismiss: {
                 if let visible = TerminalViewController.visibleTerminal {
