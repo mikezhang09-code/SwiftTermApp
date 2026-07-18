@@ -216,7 +216,7 @@ struct HomeView: View {
                             .foregroundColor(Color (.systemGray))
                     })
                 NavigationLink(
-                    destination: LocalTerminalHost()
+                    destination: LocalTerminalPage()
                         .navigationTitle ("Local Terminal")
                         .navigationBarTitleDisplayMode (.inline),
                     label: {

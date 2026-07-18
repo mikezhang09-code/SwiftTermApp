@@ -40,6 +40,8 @@ struct AiTestResult {
     var summary: String
     /// Set when the configured model was not found in the endpoint's model list
     var warning: String?
+    /// Chat-capable models the endpoint actually serves; feeds the model picker
+    var models: [String] = []
 }
 
 struct AiClient {
@@ -93,7 +95,19 @@ struct AiClient {
         if !ids.isEmpty && !ids.contains (where: matches) {
             result.warning = "Configured model “\(config.model)” was not in the list — double-check the model name"
         }
+        result.models = ids
         return result
+    }
+
+    /// OpenAI's /models mixes chat models with audio/image/embedding models;
+    /// drop the ones that can't serve chat completions
+    static let openAiNonChatPrefixes = ["whisper", "tts", "dall-e", "text-embedding", "embedding",
+                                        "moderation", "omni-moderation", "davinci", "babbage",
+                                        "text-moderation", "sora"]
+
+    static func isOpenAiChatModel (_ id: String) -> Bool {
+        let lower = id.lowercased ()
+        return !openAiNonChatPrefixes.contains { lower.hasPrefix ($0) }
     }
 
     func testAnthropic () async throws -> AiTestResult {
@@ -149,7 +163,7 @@ struct AiClient {
               let list = json ["data"] as? [[String: Any]] else {
             throw AiClientError.badResponse
         }
-        let ids = list.compactMap { $0 ["id"] as? String }
+        let ids = list.compactMap { $0 ["id"] as? String }.filter { AiClient.isOpenAiChatModel ($0) }
         return modelListResult (ids: ids) { $0 == config.model }
     }
 
@@ -252,9 +266,17 @@ struct AiClient {
               let list = json ["models"] as? [[String: Any]] else {
             throw AiClientError.badResponse
         }
-        // Gemini model names come back as "models/gemini-..."
-        let ids = list.compactMap { $0 ["name"] as? String }
-        return modelListResult (ids: ids) { $0 == config.model || $0 == "models/\(config.model)" }
+        // Keep the models that can serve generateContent and strip the
+        // "models/" prefix so the picker value drops straight into the URL path
+        let ids: [String] = list.compactMap { entry in
+            guard let name = entry ["name"] as? String else { return nil }
+            if let methods = entry ["supportedGenerationMethods"] as? [String],
+               !methods.contains ("generateContent") {
+                return nil
+            }
+            return name.hasPrefix ("models/") ? String (name.dropFirst (7)) : name
+        }
+        return modelListResult (ids: ids) { $0 == config.model }
     }
 }
 

@@ -266,6 +266,7 @@ class LocalTerminalView: AppTerminalView, TerminalViewDelegate {
 
 class LocalTerminalViewController: UIViewController {
     var terminalView: LocalTerminalView?
+    static weak var visibleTerminal: LocalTerminalView?
 
     override func viewDidLoad () {
         super.viewDidLoad ()
@@ -283,6 +284,7 @@ class LocalTerminalViewController: UIViewController {
 
     override func viewDidAppear (_ animated: Bool) {
         super.viewDidAppear (animated)
+        LocalTerminalViewController.visibleTerminal = terminalView
         _ = terminalView?.becomeFirstResponder ()
     }
 }
@@ -295,6 +297,28 @@ struct LocalTerminalHost: UIViewControllerRepresentable {
     }
 
     func updateUIViewController (_ uiViewController: LocalTerminalViewController, context: Context) {}
+}
+
+/// Local terminal with the same AI toolbar affordance as SSH terminals
+struct LocalTerminalPage: View {
+    @State var showAi = false
+
+    var body: some View {
+        LocalTerminalHost ()
+            .toolbar {
+                ToolbarItem (placement: .navigationBarTrailing) {
+                    Button (action: { showAi = true }) {
+                        Image (systemName: "sparkles")
+                    }
+                    .accessibilityIdentifier ("ai-explain")
+                }
+            }
+            .sheet (isPresented: $showAi, onDismiss: {
+                _ = LocalTerminalViewController.visibleTerminal?.becomeFirstResponder ()
+            }) {
+                AiExplainView (terminalGetter: { LocalTerminalViewController.visibleTerminal })
+            }
+    }
 }
 
 // MARK: - ping

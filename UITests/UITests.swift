@@ -100,6 +100,115 @@ class UITests: XCTestCase {
         app.buttons["Cancel"].tap()
     }
 
+    /// Full Explain flow against the local mock AI server (scratchpad
+    /// ssetest/mock_sse.py must be running on 127.0.0.1:8765 — ATS exempts
+    /// loopback, so plain http works in the simulator).
+    func testExplainEndToEnd() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        let dismiss = app.buttons["Dismiss"]
+        if dismiss.waitForExistence(timeout: 5) {
+            dismiss.tap()
+        }
+
+        // 1. Configure a mock OpenAI-compatible provider
+        let aiLink = app.staticTexts["AI"].firstMatch
+        if !aiLink.waitForExistence(timeout: 3) {
+            app.navigationBars.buttons.firstMatch.tap()
+        }
+        XCTAssertTrue (aiLink.waitForExistence(timeout: 10))
+        aiLink.tap()
+        XCTAssertTrue (app.navigationBars["AI Providers"].waitForExistence(timeout: 5))
+
+        app.navigationBars["AI Providers"].buttons.firstMatch.tap()
+        let compatible = app.buttons["OpenAI-compatible…"].firstMatch
+        XCTAssertTrue (compatible.waitForExistence(timeout: 5))
+        compatible.tap()
+
+        let urlField = app.textFields["Base URL"]
+        XCTAssertTrue (urlField.waitForExistence(timeout: 5))
+        urlField.tap()
+        let existing = (urlField.value as? String) ?? ""
+        urlField.typeText (String (repeating: XCUIKeyboardKey.delete.rawValue, count: existing.count + 5))
+        urlField.typeText ("http://127.0.0.1:8765")
+
+        let keyField = app.secureTextFields["API key"]
+        keyField.tap()
+        keyField.typeText ("mock-key\n")   // return dismisses the keyboard
+
+        // Test loads the endpoint's real model list (filtered to chat models).
+        // Scroll first: rows under the keyboard are virtualized out of the
+        // accessibility tree in a Form.
+        let testButton = app.buttons["Test"]
+        var scrolls = 0
+        while !testButton.exists && scrolls < 4 {
+            app.swipeUp()
+            scrolls += 1
+        }
+        XCTAssertTrue (testButton.waitForExistence(timeout: 5), "Test button not reachable")
+        testButton.tap()
+        let okLabel = app.staticTexts.matching (NSPredicate (format: "label BEGINSWITH 'OK —'")).firstMatch
+        XCTAssertTrue (okLabel.waitForExistence(timeout: 10), "Test did not succeed against the mock server")
+
+        // The model menu should now offer the fetched list; pick one
+        var menu = app.buttons["ai-model-menu"].firstMatch
+        if !menu.exists {
+            menu = app.otherElements["ai-model-menu"].firstMatch
+        }
+        if !menu.isHittable {
+            app.swipeDown()
+        }
+        XCTAssertTrue (menu.waitForExistence(timeout: 5), "Model menu not found")
+        menu.tap()
+        let fetchedModel = app.buttons["mock-gpt"].firstMatch
+        XCTAssertTrue (fetchedModel.waitForExistence(timeout: 5), "Fetched model not in the menu")
+        XCTAssertFalse (app.buttons["whisper-1"].exists, "Non-chat model should be filtered out")
+        fetchedModel.tap()
+
+        app.buttons["Save"].tap()
+
+        // Make the mock provider active (there may be pre-existing providers)
+        let activate = app.images["ai-activate-OpenAI-compatible"].firstMatch
+        XCTAssertTrue (activate.waitForExistence(timeout: 5))
+        activate.tap()
+
+        // 2. Produce output in the local terminal.  Relaunch first — provider
+        // configs persist, and a fresh launch gives the same reliable
+        // navigation state as testLocalTerminalOpens.
+        app.terminate()
+        app.launch()
+        if dismiss.waitForExistence(timeout: 5) {
+            dismiss.tap()
+        }
+        let terminalLink = app.staticTexts["Local Terminal"].firstMatch
+        if !terminalLink.waitForExistence(timeout: 3) {
+            app.navigationBars.buttons.firstMatch.tap()
+        }
+        XCTAssertTrue (terminalLink.waitForExistence(timeout: 10))
+        terminalLink.tap()
+        XCTAssertTrue (app.navigationBars["Local Terminal"].waitForExistence(timeout: 10), "Local Terminal did not open")
+        sleep (2)
+        // Focus the terminal before typing (the sidebar may have stolen focus)
+        app.coordinate (withNormalizedOffset: CGVector (dx: 0.7, dy: 0.4)).tap()
+        sleep (1)
+        app.typeText ("echo EXPLAIN-TEST-MARKER\n")
+        usleep (500_000)
+
+        // 3. Explain: preview shows the captured output, Send streams the answer
+        app.buttons["ai-explain"].firstMatch.tap()
+        let sendButton = app.buttons.matching (NSPredicate (format: "label BEGINSWITH 'Send to'")).firstMatch
+        XCTAssertTrue (sendButton.waitForExistence(timeout: 5), "Explain preview did not open")
+        sendButton.tap()
+
+        let answer = app.staticTexts.matching (NSPredicate (format: "label CONTAINS 'openai-mock'")).firstMatch
+        XCTAssertTrue (answer.waitForExistence(timeout: 15), "Streamed answer not visible")
+
+        let attachment = XCTAttachment (screenshot: app.screenshot ())
+        attachment.lifetime = .keepAlways
+        add (attachment)
+    }
+
     //let password = try String (contentsOf: URL (fileURLWithPath: "/Users/miguel/password"))
 
     func testAddHostLoginPassword() throws {

@@ -31,6 +31,7 @@ struct AiSettingsView: View {
                             HStack {
                                 Image (systemName: store.activeProviderId == provider.id ? "checkmark.circle.fill" : "circle")
                                     .foregroundColor (store.activeProviderId == provider.id ? .accentColor : .secondary)
+                                    .accessibilityIdentifier ("ai-activate-\(provider.name)")
                                     .onTapGesture {
                                         store.activeProviderId = provider.id
                                     }
@@ -98,6 +99,7 @@ struct AiProviderEditor: View {
     @State var apiKey: String = ""
     @State var keyLoaded = false
     @State var testState: TestState = .idle
+    @State var fetchedModels: [String] = []
 
     enum TestState {
         case idle
@@ -134,18 +136,27 @@ struct AiProviderEditor: View {
                         }
                     }
                 }
-                Section (header: Text ("Model")) {
+                Section (header: Text ("Model"), footer: Text (modelFooter)) {
                     HStack {
                         TextField ("Model", text: $config.model)
                             .autocapitalization (.none)
                             .disableAutocorrection (true)
                         Menu {
-                            ForEach (config.kind.suggestedModels, id: \.self) { model in
-                                Button (model) { config.model = model }
+                            ForEach (pickableModels, id: \.self) { model in
+                                Button (action: { config.model = model }) {
+                                    if model == config.model {
+                                        Label (model, systemImage: "checkmark")
+                                    } else {
+                                        Text (model)
+                                    }
+                                }
                             }
                         } label: {
                             Image (systemName: "chevron.up.chevron.down")
+                                .padding (.vertical, 4)
+                                .padding (.leading, 12)
                         }
+                        .accessibilityIdentifier ("ai-model-menu")
                     }
                 }
                 Section (header: Text ("API Key"), footer: Text ("Stored in the keychain, never in settings files.")) {
@@ -188,6 +199,18 @@ struct AiProviderEditor: View {
         }
     }
 
+    /// After a successful Test the menu offers the endpoint's real model
+    /// list; before that, a few built-in suggestions.  Manual entry always works.
+    var pickableModels: [String] {
+        fetchedModels.isEmpty ? config.kind.suggestedModels : fetchedModels
+    }
+
+    var modelFooter: String {
+        fetchedModels.isEmpty
+            ? "Run Test below to load the endpoint's actual model list into this menu."
+            : "Model list loaded from the endpoint (\(fetchedModels.count) models)."
+    }
+
     var isTestDisabled: Bool {
         if case .running = testState { return true }
         return apiKey.isEmpty || config.baseUrl.isEmpty
@@ -226,6 +249,9 @@ struct AiProviderEditor: View {
                 let result = try await client.test ()
                 await MainActor.run {
                     testState = .success (result.summary, result.warning)
+                    if !result.models.isEmpty {
+                        fetchedModels = result.models
+                    }
                 }
             } catch {
                 await MainActor.run {
