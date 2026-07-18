@@ -397,9 +397,14 @@ final class PortForward: ObservableObject, Identifiable {
     // MARK: Local & dynamic (NWListener on loopback)
 
     private func startLocalListener () {
-        guard listener == nil else { return }
-        guard let port = NWEndpoint.Port (rawValue: UInt16 (localPort)) else {
-            setStatus ("Invalid local port", active: false)
+        // If a previous attempt left a listener that never became ready, tear it down
+        // rather than silently doing nothing on the next toggle.
+        if let existing = listener {
+            existing.cancel ()
+            listener = nil
+        }
+        guard localPort > 0, localPort < 65536, let port = NWEndpoint.Port (rawValue: UInt16 (localPort)) else {
+            setStatus ("Invalid local port \(localPort)", active: false)
             return
         }
         // Loopback only, so the forward is not exposed to the local network.
@@ -407,32 +412,38 @@ final class PortForward: ObservableObject, Identifiable {
         params.requiredLocalEndpoint = NWEndpoint.hostPort (host: .ipv4 (.loopback), port: port)
         params.allowLocalEndpointReuse = true
 
+        let newListener: NWListener
         do {
-            let listener = try NWListener (using: params)
-            listener.newConnectionHandler = { [weak self] connection in
-                self?.acceptLocal (connection)
-            }
-            listener.stateUpdateHandler = { [weak self] state in
-                guard let self else { return }
-                switch state {
-                case .ready:
-                    self.setStatus (self.kind == .dynamic
-                        ? "SOCKS5 on 127.0.0.1:\(self.localPort)"
-                        : "Listening on 127.0.0.1:\(self.localPort)", active: true)
-                case .failed (let error):
-                    self.setStatus ("Failed: \(error.localizedDescription)", active: false)
-                    self.stop ()
-                case .cancelled:
-                    self.setStatus ("Stopped", active: false)
-                default:
-                    break
-                }
-            }
-            self.listener = listener
-            listener.start (queue: PortForward.queue)
+            newListener = try NWListener (using: params)
         } catch {
-            setStatus ("Could not listen on port \(localPort): \(error.localizedDescription)", active: false)
+            setStatus ("Could not open port \(localPort): \(error.localizedDescription)", active: false)
+            return
         }
+        newListener.newConnectionHandler = { [weak self] connection in
+            self?.acceptLocal (connection)
+        }
+        newListener.stateUpdateHandler = { [weak self] state in
+            guard let self else { return }
+            switch state {
+            case .ready:
+                self.setStatus (self.kind == .dynamic
+                    ? "SOCKS5 on 127.0.0.1:\(self.localPort)"
+                    : "Listening on 127.0.0.1:\(self.localPort)", active: true)
+            case .waiting (let error):
+                // Usually the port is already in use; surface it instead of hanging
+                self.setStatus ("Waiting — \(error.localizedDescription) (is port \(self.localPort) already in use?)", active: false)
+            case .failed (let error):
+                self.setStatus ("Failed: \(error.localizedDescription)", active: false)
+                self.stop ()
+            case .cancelled:
+                self.setStatus ("Stopped", active: false)
+            default:
+                break
+            }
+        }
+        self.listener = newListener
+        setStatus ("Starting on 127.0.0.1:\(localPort)…", active: false)
+        newListener.start (queue: PortForward.queue)
     }
 
     private func acceptLocal (_ nw: NWConnection) {
