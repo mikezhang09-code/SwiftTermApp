@@ -172,6 +172,7 @@ class UITests: XCTestCase {
         let activate = app.images["ai-activate-OpenAI-compatible"].firstMatch
         XCTAssertTrue (activate.waitForExistence(timeout: 5))
         activate.tap()
+        sleep (2)   // let UserDefaults flush before the app is killed
 
         // 2. Produce output in the local terminal.  Relaunch first — provider
         // configs persist, and a fresh launch gives the same reliable
@@ -251,6 +252,7 @@ class UITests: XCTestCase {
         }
         XCTAssertTrue (activate.waitForExistence(timeout: 5))
         activate.tap()
+        sleep (2)   // let UserDefaults flush before the app is killed
 
         // Fresh launch for reliable sidebar navigation
         app.terminate()
@@ -313,6 +315,7 @@ class UITests: XCTestCase {
         let activate = app.images["ai-activate-OpenAI-compatible"].firstMatch
         XCTAssertTrue (activate.waitForExistence(timeout: 5), "Run testExplainEndToEnd first to create the mock provider")
         activate.tap()
+        sleep (2)   // let UserDefaults flush before the app is killed
 
         app.terminate()
         app.launch()
