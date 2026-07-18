@@ -29,6 +29,7 @@
 		FA57B10FE5D1AB0000000009 /* commandDictionary.plist in Resources */ = {isa = PBXBuildFile; fileRef = FA57B10FE5D1AB000000000A /* commandDictionary.plist */; };
 		FA57B10FE5D1AB0000000007 /* LocalTerminal.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B10FE5D1AB0000000006 /* LocalTerminal.swift */; };
 		FA57B10FE5D1AB000000000C /* PortForwarding.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B10FE5D1AB000000000B /* PortForwarding.swift */; };
+		FA57B10FE5D1AB000000000E /* SocksBrowser.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B10FE5D1AB000000000D /* SocksBrowser.swift */; };
 		49184C5D27BC1BA900335BFB /* ConnectionMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49184C5C27BC1BA900335BFB /* ConnectionMessage.swift */; };
 		49184C5F27BC1CAA00335BFB /* GenericConnectionIssue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49184C5E27BC1CAA00335BFB /* GenericConnectionIssue.swift */; };
 		4923C56627319336000CC371 /* LocationTracking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4923C56527319336000CC371 /* LocationTracking.swift */; };
@@ -158,6 +159,7 @@
 		FA57B10FE5D1AB0000000001 /* SftpBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SftpBrowserView.swift; sourceTree = "<group>"; };
 		FA57B10FE5D1AB0000000006 /* LocalTerminal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalTerminal.swift; sourceTree = "<group>"; };
 		FA57B10FE5D1AB000000000B /* PortForwarding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortForwarding.swift; sourceTree = "<group>"; };
+		FA57B10FE5D1AB000000000D /* SocksBrowser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocksBrowser.swift; sourceTree = "<group>"; };
 		FA57B10FE5D1AB0000000008 /* ios_system */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ios_system; path = LocalPackages/ios_system; sourceTree = "<group>"; };
 		FA57B10FE5D1AB000000000A /* commandDictionary.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = commandDictionary.plist; sourceTree = "<group>"; };
 		49184C5C27BC1BA900335BFB /* ConnectionMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionMessage.swift; sourceTree = "<group>"; };
@@ -550,6 +552,7 @@
 				FA57B10FE5D1AB0000000001 /* SftpBrowserView.swift */,
 				FA57B10FE5D1AB0000000006 /* LocalTerminal.swift */,
 				FA57B10FE5D1AB000000000B /* PortForwarding.swift */,
+				FA57B10FE5D1AB000000000D /* SocksBrowser.swift */,
 			);
 			path = Terminal;
 			sourceTree = "<group>";
@@ -852,6 +855,7 @@
 				FA57B10FE5D1AB0000000002 /* SftpBrowserView.swift in Sources */,
 				FA57B10FE5D1AB0000000007 /* LocalTerminal.swift in Sources */,
 				FA57B10FE5D1AB000000000C /* PortForwarding.swift in Sources */,
+				FA57B10FE5D1AB000000000E /* SocksBrowser.swift in Sources */,
 				49BA35982676EEB600B63510 /* KeyTools.swift in Sources */,
 				49BA359A2676EFD200B63510 /* CreateLocalKeyButtons.swift in Sources */,
 				49A0A2C2249298BF002593F7 /* DigitalBrain.metal in Sources */,

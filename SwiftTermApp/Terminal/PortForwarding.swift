@@ -878,6 +878,7 @@ struct PortForwardRow: View {
     @ObservedObject var forward: PortForward
     @State private var testResult: String = ""
     @State private var showTestResult = false
+    @State private var showBrowser = false
 
     var body: some View {
         HStack {
@@ -898,9 +899,16 @@ struct PortForwardRow: View {
                 }
             }
             Spacer ()
-            // For a running SOCKS proxy, offer a one-tap end-to-end test — the only
-            // practical way to verify it on iOS, where there is no system SOCKS setting
+            // For a running SOCKS proxy: a built-in browser that routes through it (the
+            // practical way to use ssh -D on iOS), plus a one-tap end-to-end test.
             if forward.kind == .dynamic && forward.active {
+                if #available(iOS 17.0, *) {
+                    Button (action: { showBrowser = true }) {
+                        Image (systemName: "safari")
+                    }
+                    .buttonStyle (.bordered)
+                    .padding (.trailing, 4)
+                }
                 if forward.testing {
                     ProgressView ()
                         .padding (.trailing, 6)
@@ -927,6 +935,11 @@ struct PortForwardRow: View {
             Button ("OK") { }
         } message: {
             Text (testResult)
+        }
+        .sheet (isPresented: $showBrowser) {
+            if #available(iOS 17.0, *) {
+                SocksBrowserView (localPort: forward.localPort)
+            }
         }
     }
 }
