@@ -56,6 +56,29 @@ struct AiSettingsView: View {
                     }
                 }
             }
+            Section (header: Text ("Answers"), footer: Text ("How much scrollback to send when nothing is selected in the terminal.")) {
+                Picker (selection: $store.answerLanguage, label: Text ("Answer language")) {
+                    ForEach (AiAnswerLanguage.allCases) { language in
+                        Text (language.displayName).tag (language)
+                    }
+                }
+                Stepper (value: $store.explainLines, in: 20...500, step: 20) {
+                    HStack {
+                        Text ("Explain context")
+                        Spacer ()
+                        Text ("\(store.explainLines) lines")
+                            .foregroundColor (.secondary)
+                    }
+                }
+                Stepper (value: $store.diagnoseLines, in: 20...500, step: 20) {
+                    HStack {
+                        Text ("Diagnose context")
+                        Spacer ()
+                        Text ("\(store.diagnoseLines) lines")
+                            .foregroundColor (.secondary)
+                    }
+                }
+            }
         }
         .listStyle (GroupedListStyle ())
         .navigationTitle ("AI Providers")

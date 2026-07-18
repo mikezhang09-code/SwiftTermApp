@@ -72,7 +72,11 @@ struct AiCommandView: View {
     @State var errorMessage: String? = nil
     @State var confirmDestructive = false
 
-    static let systemPrompt = """
+    static func systemPrompt (language: AiAnswerLanguage) -> String {
+        basePrompt + "  " + language.instruction
+    }
+
+    static let basePrompt = """
         You are an expert systems administrator built into an iOS SSH client. \
         The user describes what they want to do on a remote host; respond with \
         exactly one POSIX shell command that does it.  Respond with ONLY a JSON \
@@ -239,7 +243,8 @@ struct AiCommandView: View {
         rawAnswer = ""
         Task {
             do {
-                let text = try await client.completeJson (system: AiCommandView.systemPrompt, user: user)
+                let text = try await client.completeJson (
+                    system: AiCommandView.systemPrompt (language: store.answerLanguage), user: user)
                 await MainActor.run {
                     running = false
                     if let parsed = AiCommandSuggestion.parse (text) {

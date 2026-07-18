@@ -311,7 +311,9 @@ struct LocalTerminalPage: View {
                 ToolbarItem (placement: .navigationBarTrailing) {
                     Menu {
                         Button (action: { showAi = true }) {
-                            Label ("Explain Output", systemImage: "text.magnifyingglass")
+                            Label (LocalTerminalViewController.visibleTerminal?.hasAiSelection == true
+                                   ? "Explain Selection" : "Explain Output",
+                                   systemImage: "text.magnifyingglass")
                         }
                         .accessibilityIdentifier ("ai-explain")
                         Button (action: { showAiDiagnose = true }) {

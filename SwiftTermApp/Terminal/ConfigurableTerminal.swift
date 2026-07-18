@@ -126,7 +126,8 @@ struct ConfigurableUITerminal: View {
                         }
                         Menu {
                             Button (action: { self.showAi = true }) {
-                                Label ("Explain Output", systemImage: "text.magnifyingglass")
+                                Label (terminalGetter ()?.hasAiSelection == true ? "Explain Selection" : "Explain Output",
+                                       systemImage: "text.magnifyingglass")
                             }
                             Button (action: { self.showAiDiagnose = true }) {
                                 Label ("Diagnose Failure", systemImage: "stethoscope")

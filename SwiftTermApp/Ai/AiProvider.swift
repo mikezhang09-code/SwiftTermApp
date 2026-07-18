@@ -76,6 +76,36 @@ struct AiProviderConfig: Codable, Identifiable, Equatable {
     }
 }
 
+/// What language the model should answer in
+enum AiAnswerLanguage: String, Codable, CaseIterable, Identifiable {
+    /// Follow the question, falling back to the language of the terminal output
+    case auto
+    case english
+    case chinese
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .auto: return "Match my question"
+        case .english: return "English"
+        case .chinese: return "中文"
+        }
+    }
+
+    /// Appended to every system prompt
+    var instruction: String {
+        switch self {
+        case .auto:
+            return "Answer in the language the user's question is written in, defaulting to the language of the output."
+        case .english:
+            return "Always answer in English, even when the output or question is in another language."
+        case .chinese:
+            return "总是用中文回答，即使输出或问题是其他语言。Technical identifiers (commands, paths, error strings) stay in their original form."
+        }
+    }
+}
+
 /// Keychain query for AI provider API keys, mirroring getHostPasswordQuery
 func getAiApiKeyQuery (id: String, password: String?, fetch: Bool = false, split: Bool = false, forDelete: Bool = false) -> (CFDictionary, CFDictionary) {
     return _getPassphraseQuery (kind: "SwiftTermAppAiApiKey", value: id, password: password, fetch: fetch, split: split, forDelete: forDelete)
@@ -100,7 +130,35 @@ class AiProviderStore: ObservableObject {
         }
     }
 
+    static let languageKey = "aiAnswerLanguage"
+    static let explainLinesKey = "aiExplainLines"
+    static let diagnoseLinesKey = "aiDiagnoseLines"
+
+    @Published var answerLanguage: AiAnswerLanguage {
+        didSet { defaults?.set (answerLanguage.rawValue, forKey: AiProviderStore.languageKey) }
+    }
+
+    /// Buffer lines sent when nothing is selected
+    @Published var explainLines: Int {
+        didSet { defaults?.set (explainLines, forKey: AiProviderStore.explainLinesKey) }
+    }
+
+    @Published var diagnoseLines: Int {
+        didSet { defaults?.set (diagnoseLines, forKey: AiProviderStore.diagnoseLinesKey) }
+    }
+
     init () {
+        if let raw = defaults?.string (forKey: AiProviderStore.languageKey),
+           let lang = AiAnswerLanguage (rawValue: raw) {
+            answerLanguage = lang
+        } else {
+            answerLanguage = .auto
+        }
+        let explain = defaults?.integer (forKey: AiProviderStore.explainLinesKey) ?? 0
+        explainLines = explain > 0 ? explain : 80
+        let diagnose = defaults?.integer (forKey: AiProviderStore.diagnoseLinesKey) ?? 0
+        diagnoseLines = diagnose > 0 ? diagnose : 150
+
         if let data = defaults?.data (forKey: AiProviderStore.providersKey),
            let decoded = try? JSONDecoder ().decode ([AiProviderConfig].self, from: data) {
             providers = decoded

@@ -31,15 +31,6 @@ struct AiExplainView: View {
             }
         }
 
-        /// Diagnosis needs more scrollback: the failure is usually several
-        /// commands back from the last prompt
-        var contextLines: Int {
-            switch self {
-            case .explain: return 80
-            case .diagnose: return 150
-            }
-        }
-
         var questionPlaceholder: String {
             switch self {
             case .explain: return "Explain this output"
@@ -54,14 +45,13 @@ struct AiExplainView: View {
             }
         }
 
-        var systemPrompt: String {
+        func systemPrompt (language: AiAnswerLanguage) -> String {
             let shared = """
                 You are an expert systems administrator built into an iOS SSH \
                 client.  The user sends you terminal output, possibly with \
                 sensitive values replaced by placeholders like [IP-1] or \
                 [SECRET-1]; refer to the placeholders as-is and never ask for \
-                the real values.  Answer in the language the user's question is \
-                written in, defaulting to the language of the output.
+                the real values.  \(language.instruction)
                 """
             switch self {
             case .explain:
@@ -96,6 +86,14 @@ struct AiExplainView: View {
         case streaming
         case done
         case failed (String)
+    }
+
+    /// Buffer lines to capture for this mode, from AI settings
+    var contextLines: Int {
+        switch mode {
+        case .explain: return store.explainLines
+        case .diagnose: return store.diagnoseLines
+        }
     }
 
     var redaction: RedactionResult {
@@ -149,7 +147,7 @@ struct AiExplainView: View {
 
     var previewForm: some View {
         Form {
-            Section (header: Text (usedSelection ? "Selection" : "Last \(mode.contextLines) lines"),
+            Section (header: Text (usedSelection ? "Selection" : "Last \(contextLines) lines"),
                      footer: redactionFooter) {
                 ScrollView {
                     Text (textToSend.isEmpty ? "Nothing captured from the terminal" : textToSend)
@@ -242,7 +240,7 @@ struct AiExplainView: View {
         while let last = trimmed.last, last.isEmpty {
             trimmed.removeLast ()
         }
-        source = trimmed.suffix (mode.contextLines).joined (separator: "\n")
+        source = trimmed.suffix (contextLines).joined (separator: "\n")
         usedSelection = false
     }
 
@@ -253,7 +251,7 @@ struct AiExplainView: View {
             + "\n\nTerminal output:\n```\n" + textToSend + "\n```"
         answer = ""
         phase = .streaming
-        stream = client.chat (system: mode.systemPrompt, user: prompt, onDelta: { delta in
+        stream = client.chat (system: mode.systemPrompt (language: store.answerLanguage), user: prompt, onDelta: { delta in
             answer += delta
         }, onDone: { result in
             switch result {

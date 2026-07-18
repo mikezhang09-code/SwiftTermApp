@@ -20,7 +20,6 @@ import SwiftUI
 /// TerminalView to become the host for an existing view.
 ///
 class TerminalViewController: UIViewController {
-    // If this is nil, it will trigger the SSH workflow.
     var terminalView: SshTerminalView?
     var interactive: Bool
     var host: Host

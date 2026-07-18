@@ -4,6 +4,11 @@
 This document records where the project stands against that spec and the agreed plan
 for implementing the Phase 3 AI feature.*
 
+> **Status: spec §6 is shipped.** Steps 1–4 below are done and on `main`; only the
+> step-5 polish items remain.  See §8 for the shipped-state summary, the
+> implementation notes worth remembering, and what still needs on-device
+> verification.
+
 ---
 
 ## 1. Spec vs. what has actually shipped
@@ -110,11 +115,70 @@ Each step = one commit, testable on its own. Steps 2–4 need on-device verifica
    diagnosis-oriented system prompt. (True exit-code awareness would need shell
    integration hooks — out of scope for v1; buffer tail is enough.)
 5. **Polish** — long-press context-menu "Explain selection" on the terminal,
-   bilingual EN/中文 answer preference, offline/rate-limit error handling.
+   bilingual EN/中文 answer preference, configurable context-lines, offline/rate-limit
+   error handling.
 
 ---
 
-## 7. Risks
+## 7. Shipped state (updated 2026-07-18)
+
+| Step | Commit | Status |
+|---|---|---|
+| 1. Foundation (providers, keys, Test) | `047fa31` | ✅ Shipped, device-verified (OpenAI, Gemini, Vercel AI Gateway) |
+| — visibility/model-list follow-up | `2dd1af3` | ✅ Two-phase answer screen, Test-fed model picker, local-terminal AI |
+| 2. Explain this | `aa1d570` | ✅ Shipped, simulator-verified |
+| 3. NL→shell | `064d601` | ✅ Shipped, simulator-verified |
+| 4. Diagnose | `688252e` | ✅ Shipped, simulator-verified |
+| 5. Polish | — | ⬜ In progress (see below) |
+
+### What each feature ended up being
+
+- **Providers** — `AiProviderStore` keeps configs in the app's UserDefaults suite and
+  API keys in the keychain (`SwiftTermAppAiApiKey` service, reusing `KeychainTools`).
+  Anthropic / OpenAI / Gemini kinds; "compatible" endpoints are the same kind with a
+  custom base URL.  **Test** lists the endpoint's models (free) and loads the real
+  list into the model picker; Anthropic-compatible proxies without `/v1/models` fall
+  back to a 1-token message ping.
+- **Explain / Diagnose** — one sheet, two modes (`AiExplainView.Mode`).  Captures the
+  selection or a buffer tail, redacts, shows the exact text before sending, then
+  streams the answer on a dedicated screen.  Diagnose takes more scrollback and asks
+  for cause + concrete next step, with uncertainty stated plainly.
+- **NL→shell** — `AiCommandView` asks for one POSIX command as JSON via
+  `AiClient.completeJson`, using each provider's native structured-output parameter
+  with an automatic retry on plain prompting when a proxy rejects it.  Risk badge
+  (safe/caution/destructive), insert **without** a trailing newline, extra
+  confirmation for destructive commands.
+
+### Implementation notes worth remembering
+
+- **iOS 14.7 deployment target** rules out `URLSession.bytes(for:)`, `.textSelection`,
+  and `swipeActions` — SSE streaming is a `URLSessionDataDelegate` (`AiChatStream`).
+- **SwiftTerm defines its own `Color`** — qualify `SwiftUI.Color` in files importing both.
+- **Redaction placeholders are stable** (`[IP-1]` repeats for the same value) so the
+  model can still reason about "the same host appears twice"; loopback addresses are
+  allowlisted because they matter for diagnosis.
+- **Verify test-bundle freshness before trusting a UI test.** An interrupted
+  `xcodebuild` corrupted the UITests target's incremental build state: the build
+  reported success while relinking a stale object file, so the runner silently
+  executed old test code.  Fix: `rm -rf` the target's `.build` dir and `XCBuildData`,
+  then confirm with `strings <UITests binary> | grep <new identifier>`.
+- **XCUITest on iPad**: Form rows under the keyboard are virtualized out of the
+  accessibility tree (dismiss the keyboard or swipe first), and sidebar navigation
+  from a deep state is flaky — relaunching the app is more reliable.
+
+### Verification
+
+Simulator end-to-end tests (`testExplainEndToEnd`, `testCommandEndToEnd`,
+`testDiagnoseEndToEnd`) drive the real flows against a loopback mock server
+(`mock_sse.py`, all three provider wire formats + non-streaming JSON).  **The mock
+server must be running on 127.0.0.1:8765 for those tests to pass** — ATS exempts
+loopback, so plain HTTP works in the simulator.
+
+Still outstanding: **device verification of Explain / Diagnose / Command against a
+real provider over a real SSH session.** The mock proves the wire formats and the UI;
+only the device proves the answers are useful.
+
+## 8. Risks
 
 - **App Store later:** BYO-key is fine (many clients do this); the pre-send privacy
   preview also doubles as review-friendliness.

@@ -51,6 +51,12 @@ public class AppTerminalView: TerminalView {
     var useSharedTheme: Bool { host.style == "" }
     var useDefaultBackground: Bool { host.background == "default" }
     
+    // MARK: - AI helpers
+
+    var hasAiSelection: Bool {
+        !(getSelection () ?? "").isEmpty
+    }
+
     init (frame: CGRect, host: Host) throws {
         self.host = host
         super.init (frame: frame)
