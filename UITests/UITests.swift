@@ -196,7 +196,10 @@ class UITests: XCTestCase {
         usleep (500_000)
 
         // 3. Explain: preview shows the captured output, Send streams the answer
-        app.buttons["ai-explain"].firstMatch.tap()
+        app.buttons["ai-menu"].firstMatch.tap()
+        let explainItem = app.buttons["Explain Output"].firstMatch
+        XCTAssertTrue (explainItem.waitForExistence(timeout: 5), "AI menu did not open")
+        explainItem.tap()
         let sendButton = app.buttons.matching (NSPredicate (format: "label BEGINSWITH 'Send to'")).firstMatch
         XCTAssertTrue (sendButton.waitForExistence(timeout: 5), "Explain preview did not open")
         sendButton.tap()
@@ -207,6 +210,85 @@ class UITests: XCTestCase {
         let attachment = XCTAttachment (screenshot: app.screenshot ())
         attachment.lifetime = .keepAlways
         add (attachment)
+    }
+
+    /// NL→shell against the mock provider: request → suggested command with
+    /// risk badge → insert (no newline).  Requires mock_sse.py on 127.0.0.1:8765
+    /// and reuses the provider saved by testExplainEndToEnd if present.
+    func testCommandEndToEnd() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        let dismiss = app.buttons["Dismiss"]
+        if dismiss.waitForExistence(timeout: 5) {
+            dismiss.tap()
+        }
+
+        // Ensure the mock provider exists and is active
+        let aiLink = app.staticTexts["AI"].firstMatch
+        if !aiLink.waitForExistence(timeout: 3) {
+            app.navigationBars.buttons.firstMatch.tap()
+        }
+        XCTAssertTrue (aiLink.waitForExistence(timeout: 10))
+        aiLink.tap()
+        XCTAssertTrue (app.navigationBars["AI Providers"].waitForExistence(timeout: 5))
+        let activate = app.images["ai-activate-OpenAI-compatible"].firstMatch
+        if !activate.waitForExistence(timeout: 3) {
+            app.navigationBars["AI Providers"].buttons.firstMatch.tap()
+            let compatible = app.buttons["OpenAI-compatible…"].firstMatch
+            XCTAssertTrue (compatible.waitForExistence(timeout: 5))
+            compatible.tap()
+            let urlField = app.textFields["Base URL"]
+            XCTAssertTrue (urlField.waitForExistence(timeout: 5))
+            urlField.tap()
+            let existing = (urlField.value as? String) ?? ""
+            urlField.typeText (String (repeating: XCUIKeyboardKey.delete.rawValue, count: existing.count + 5))
+            urlField.typeText ("http://127.0.0.1:8765")
+            let keyField = app.secureTextFields["API key"]
+            keyField.tap()
+            keyField.typeText ("mock-key\n")
+            app.buttons["Save"].tap()
+        }
+        XCTAssertTrue (activate.waitForExistence(timeout: 5))
+        activate.tap()
+
+        // Fresh launch for reliable sidebar navigation
+        app.terminate()
+        app.launch()
+        if dismiss.waitForExistence(timeout: 5) {
+            dismiss.tap()
+        }
+        let terminalLink = app.staticTexts["Local Terminal"].firstMatch
+        if !terminalLink.waitForExistence(timeout: 3) {
+            app.navigationBars.buttons.firstMatch.tap()
+        }
+        XCTAssertTrue (terminalLink.waitForExistence(timeout: 10))
+        terminalLink.tap()
+        sleep (2)
+
+        // Ask for a command
+        app.buttons["ai-menu"].firstMatch.tap()
+        let commandItem = app.buttons["Get a Command"].firstMatch
+        XCTAssertTrue (commandItem.waitForExistence(timeout: 5), "AI menu did not open")
+        commandItem.tap()
+
+        let requestField = app.textFields.firstMatch
+        XCTAssertTrue (requestField.waitForExistence(timeout: 5), "Command sheet did not open")
+        requestField.tap()
+        requestField.typeText ("print a marker\n")
+
+        app.buttons["Get Command"].firstMatch.tap()
+
+        XCTAssertTrue (app.staticTexts["echo MOCK-CMD"].waitForExistence(timeout: 15), "Suggested command not shown")
+        XCTAssertTrue (app.staticTexts["Safe"].exists, "Risk badge missing")
+
+        let attachment = XCTAttachment (screenshot: app.screenshot ())
+        attachment.lifetime = .keepAlways
+        add (attachment)
+
+        // Insert dismisses the sheet and types the command (no newline)
+        app.buttons["Insert into terminal"].firstMatch.tap()
+        XCTAssertFalse (app.staticTexts["echo MOCK-CMD"].waitForExistence(timeout: 3), "Sheet did not dismiss")
     }
 
     //let password = try String (contentsOf: URL (fileURLWithPath: "/Users/miguel/password"))

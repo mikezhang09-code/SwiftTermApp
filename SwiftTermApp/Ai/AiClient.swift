@@ -167,6 +167,127 @@ struct AiClient {
         return modelListResult (ids: ids) { $0 == config.model }
     }
 
+    // MARK: - Command generation (non-streaming, JSON result)
+
+    /// The shape the model must produce for NL→shell
+    static let commandSchema: [String: Any] = [
+        "type": "object",
+        "properties": [
+            "command": ["type": "string", "description": "The shell command, or empty if the request cannot be served"],
+            "explanation": ["type": "string", "description": "One or two sentences on what the command does"],
+            "risk": ["type": "string", "enum": ["safe", "caution", "destructive"]],
+            "risk_reason": ["type": "string", "description": "Why this risk level"]
+        ],
+        "required": ["command", "explanation", "risk", "risk_reason"],
+        "additionalProperties": false
+    ]
+
+    /// Builds the non-streaming request for a JSON answer.  When `enforceSchema`
+    /// is set, native structured-output parameters are attached; the prompt asks
+    /// for JSON either way so a retry without the schema still works.
+    func completionRequest (system: String, user: String, enforceSchema: Bool) throws -> URLRequest {
+        guard !apiKey.isEmpty else { throw AiClientError.emptyKey }
+        switch config.kind {
+        case .anthropic:
+            guard let url = endpoint ("/v1/messages") else { throw AiClientError.badUrl (config.baseUrl) }
+            var request = URLRequest (url: url)
+            request.httpMethod = "POST"
+            request.setValue (apiKey, forHTTPHeaderField: "x-api-key")
+            request.setValue ("2023-06-01", forHTTPHeaderField: "anthropic-version")
+            request.setValue ("application/json", forHTTPHeaderField: "Content-Type")
+            var body: [String: Any] = [
+                "model": config.model,
+                "max_tokens": 1024,
+                "system": system,
+                "messages": [["role": "user", "content": user]]
+            ]
+            if enforceSchema {
+                body ["output_config"] = ["format": ["type": "json_schema", "schema": AiClient.commandSchema]]
+            }
+            request.httpBody = try JSONSerialization.data (withJSONObject: body)
+            return request
+        case .openai:
+            guard let url = endpoint ("/chat/completions") else { throw AiClientError.badUrl (config.baseUrl) }
+            var request = URLRequest (url: url)
+            request.httpMethod = "POST"
+            request.setValue ("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+            request.setValue ("application/json", forHTTPHeaderField: "Content-Type")
+            var body: [String: Any] = [
+                "model": config.model,
+                "messages": [
+                    ["role": "system", "content": system],
+                    ["role": "user", "content": user]
+                ]
+            ]
+            if enforceSchema {
+                body ["response_format"] = ["type": "json_schema",
+                                            "json_schema": ["name": "shell_command", "strict": true,
+                                                            "schema": AiClient.commandSchema]]
+            }
+            request.httpBody = try JSONSerialization.data (withJSONObject: body)
+            return request
+        case .gemini:
+            guard let url = endpoint ("/models/\(config.model):generateContent") else {
+                throw AiClientError.badUrl (config.baseUrl)
+            }
+            var request = URLRequest (url: url)
+            request.httpMethod = "POST"
+            request.setValue (apiKey, forHTTPHeaderField: "x-goog-api-key")
+            request.setValue ("application/json", forHTTPHeaderField: "Content-Type")
+            var body: [String: Any] = [
+                "systemInstruction": ["parts": [["text": system]]],
+                "contents": [["role": "user", "parts": [["text": user]]]]
+            ]
+            if enforceSchema {
+                body ["generationConfig"] = ["responseMimeType": "application/json"]
+            }
+            request.httpBody = try JSONSerialization.data (withJSONObject: body)
+            return request
+        }
+    }
+
+    /// Extracts the answer text from a non-streaming completion response
+    func completionText (from data: Data) throws -> String {
+        guard let json = try? JSONSerialization.jsonObject (with: data) as? [String: Any] else {
+            throw AiClientError.badResponse
+        }
+        switch config.kind {
+        case .anthropic:
+            guard let content = json ["content"] as? [[String: Any]] else { throw AiClientError.badResponse }
+            return content.compactMap { $0 ["type"] as? String == "text" ? $0 ["text"] as? String : nil }.joined ()
+        case .openai:
+            guard let choices = json ["choices"] as? [[String: Any]],
+                  let message = choices.first? ["message"] as? [String: Any],
+                  let content = message ["content"] as? String else { throw AiClientError.badResponse }
+            return content
+        case .gemini:
+            guard let candidates = json ["candidates"] as? [[String: Any]],
+                  let content = candidates.first? ["content"] as? [String: Any],
+                  let parts = content ["parts"] as? [[String: Any]] else { throw AiClientError.badResponse }
+            return parts.compactMap { $0 ["text"] as? String }.joined ()
+        }
+    }
+
+    /// One-shot completion that must return JSON.  Tries with native
+    /// structured-output enforcement first; compatible proxies that reject
+    /// those parameters get one retry with prompt-only JSON.
+    func completeJson (system: String, user: String) async throws -> String {
+        let first = try completionRequest (system: system, user: user, enforceSchema: true)
+        let (data, http) = try await fetchData (for: first)
+        if http.statusCode == 200 {
+            return try completionText (from: data)
+        }
+        if http.statusCode == 400 {
+            let retry = try completionRequest (system: system, user: user, enforceSchema: false)
+            let (data2, http2) = try await fetchData (for: retry)
+            guard http2.statusCode == 200 else {
+                throw AiClientError.http (http2.statusCode, String (bytes: data2, encoding: .utf8) ?? "")
+            }
+            return try completionText (from: data2)
+        }
+        throw AiClientError.http (http.statusCode, String (bytes: data, encoding: .utf8) ?? "")
+    }
+
     // MARK: - Streaming chat
 
     /// Builds the streaming request and the provider-specific extractor that

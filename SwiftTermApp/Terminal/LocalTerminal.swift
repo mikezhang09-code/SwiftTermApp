@@ -302,21 +302,36 @@ struct LocalTerminalHost: UIViewControllerRepresentable {
 /// Local terminal with the same AI toolbar affordance as SSH terminals
 struct LocalTerminalPage: View {
     @State var showAi = false
+    @State var showAiCommand = false
 
     var body: some View {
         LocalTerminalHost ()
             .toolbar {
                 ToolbarItem (placement: .navigationBarTrailing) {
-                    Button (action: { showAi = true }) {
+                    Menu {
+                        Button (action: { showAi = true }) {
+                            Label ("Explain Output", systemImage: "text.magnifyingglass")
+                        }
+                        .accessibilityIdentifier ("ai-explain")
+                        Button (action: { showAiCommand = true }) {
+                            Label ("Get a Command", systemImage: "wand.and.stars")
+                        }
+                        .accessibilityIdentifier ("ai-command")
+                    } label: {
                         Image (systemName: "sparkles")
                     }
-                    .accessibilityIdentifier ("ai-explain")
+                    .accessibilityIdentifier ("ai-menu")
                 }
             }
             .sheet (isPresented: $showAi, onDismiss: {
                 _ = LocalTerminalViewController.visibleTerminal?.becomeFirstResponder ()
             }) {
                 AiExplainView (terminalGetter: { LocalTerminalViewController.visibleTerminal })
+            }
+            .sheet (isPresented: $showAiCommand, onDismiss: {
+                _ = LocalTerminalViewController.visibleTerminal?.becomeFirstResponder ()
+            }) {
+                AiCommandView (terminalGetter: { LocalTerminalViewController.visibleTerminal })
             }
     }
 }
