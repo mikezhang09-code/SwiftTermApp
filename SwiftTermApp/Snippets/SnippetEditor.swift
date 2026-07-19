@@ -16,6 +16,13 @@ struct SnippetEditor: View {
     @State var platforms: [String] = []
     @Environment(\.dismiss) private var dismiss
 
+    /// A snippet with no command does nothing, and one with no title shows as a
+    /// blank row, so neither is worth saving.
+    var isValid: Bool {
+        !title.trimmingCharacters (in: .whitespacesAndNewlines).isEmpty &&
+        !command.trimmingCharacters (in: .whitespacesAndNewlines).isEmpty
+    }
+
     init (snippet: CUserSnippet?) {
         self._snippet = State (initialValue: snippet)
 
@@ -70,6 +77,7 @@ struct SnippetEditor: View {
                     Button("Save") {
                         self.saveAndLeave ()
                     }
+                    .disabled (!isValid)
                 }
             }
             

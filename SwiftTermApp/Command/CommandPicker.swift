@@ -26,14 +26,18 @@ struct CommandPicker: View {
     var body: some View {
         List {
             ForEach(searchResults, id: \.id) { snippet in
-                SnippetSummary(snippet: snippet)
-                    .onTapGesture {
-                        guard let terminal = terminalGetter () else {
-                            return
-                        }
-                        dismiss()
-                        terminal.send(txt: snippet.command)
+                // A Button so the whole row is tappable; a bare gesture only
+                // covers the text, leaving most of the row dead.
+                Button {
+                    guard let terminal = terminalGetter () else {
+                        return
                     }
+                    dismiss()
+                    terminal.send(txt: snippet.command)
+                } label: {
+                    SnippetSummary(snippet: snippet)
+                }
+                .buttonStyle (.plain)
             }
         }
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always))

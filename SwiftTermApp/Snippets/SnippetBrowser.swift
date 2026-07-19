@@ -39,16 +39,21 @@ struct SnippetBrowser: View {
                 List {
                     Section {
                         ForEach(snippets.wrappedValue, id: \.self) { snippet in
-                            SnippetSummary (snippet: snippet)
-                            .onTapGesture {
+                            // A Button rather than onTapGesture: it makes the whole
+                            // row tappable (a bare gesture only covers the text) and
+                            // leaves the swipe available for onDelete, which the
+                            // gesture was swallowing.
+                            Button {
                                 activatedItem = snippet
+                            } label: {
+                                SnippetSummary (snippet: snippet)
                             }
+                            .buttonStyle (.plain)
                         }
                         .onDelete(perform: delete)
                     }
                 }
                 .listStyle(.grouped)
-                .navigationTitle(Text("Snippets"))
                 .toolbar {
                     ToolbarItem (placement: .navigationBarTrailing) {
                         EditButton ()
@@ -64,6 +69,8 @@ struct SnippetBrowser: View {
                 Spacer ()
             }
         }
+        // Outside the branches, so the empty state gets a title too
+        .navigationTitle (Text ("Snippets"))
         .sheet(isPresented: $newSnippet) {
             SnippetEditor (snippet: nil)
         }

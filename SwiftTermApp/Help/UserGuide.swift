@@ -239,15 +239,17 @@ let userGuideTopics: [GuideTopic] = [
                 heading: "Using them",
                 body: """
                 The **note** button in a terminal's toolbar opens the snippet picker; choosing a \
-                snippet types it into the current session.  Manage the list from **Snippets** on the \
-                home screen.
+                snippet types it into the current session.  It is available in SSH sessions and in \
+                the Local Terminal.  Manage the list from **Snippets** on the home screen, where you \
+                can add, edit and swipe to delete.
                 """),
             GuideSection (
                 heading: "A caution",
                 body: """
-                Snippets are pasted as-is, including any trailing newline, which means they run \
-                immediately.  Keep destructive commands out of your snippet list, or leave off the \
-                newline so you get a chance to read the line before pressing return.
+                Snippets are pasted exactly as saved.  A snippet ending in a newline runs the moment \
+                you pick it; one without a newline lands at the prompt so you can read and edit it \
+                first.  Leaving the newline off is the safer habit, and essential for anything \
+                destructive.
                 """),
         ]),
 

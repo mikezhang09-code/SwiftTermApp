@@ -9,7 +9,10 @@
 import SwiftUI
 
 struct SnippetSummary: View {
-    @State var snippet: CUserSnippet
+    /// Must observe the managed object, not snapshot it: with `@State` the row
+    /// never redraws when the snippet is edited, so your own edit only appears
+    /// after relaunching the app.
+    @ObservedObject var snippet: CUserSnippet
     var body: some View {
         VStack (alignment: .leading){
             Text (snippet.title)
@@ -19,6 +22,10 @@ struct SnippetSummary: View {
                 .foregroundColor(.secondary)
                 .font (.system (.body, design: .monospaced))
         }
+        // Fill the row and make the whole width hit-testable, otherwise only the
+        // text itself responds to a tap and most of the row is dead space.
+        .frame (maxWidth: .infinity, alignment: .leading)
+        .contentShape (Rectangle ())
     }
 }
 
