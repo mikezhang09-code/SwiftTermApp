@@ -17,8 +17,7 @@ import Combine
 /**
  * AppTerminalView is the subclass of TerminalView that provides the integration
  * into SwiftTermApp, it monitors the global `settings` for changes and
- * applies that to the terminal and also handles the Metal changes for the
- * Live backgrounds.
+ * applies that to the terminal.
  *
  * Additionally, it has the "pinch" handler for changing the font size.
  *
@@ -36,21 +35,13 @@ public class AppTerminalView: TerminalView {
     var sizeChange: AnyCancellable?
     var fontChange: AnyCancellable?
     var themeChange: AnyCancellable?
-    var backgroundChange: AnyCancellable?
     var hostChange: AnyCancellable?
-    
-    /// If set, it means that we are using Metal for our background
-    var metalHost: MetalHost?
-    
+
     var keyboardTapRecognizer: UITapGestureRecognizer!
-    
-    /// 
-    var metalLayer: CAMetalLayer?
-    
+
     /// If set, it will monitor for theme changes in `settings` and apply those, otherwise it leaves them as-is (so
     var useSharedTheme: Bool { host.style == "" }
-    var useDefaultBackground: Bool { host.background == "default" }
-    
+
     // MARK: - AI helpers
 
     var hasAiSelection: Bool {
@@ -80,19 +71,11 @@ public class AppTerminalView: TerminalView {
                 self.applyTheme(theme: settings.getTheme())
             }
         }
-        backgroundChange = settings.$backgroundStyle.sink { [weak self] _ in
-            guard let self = self else { return }
-
-            self.updateBackground (background: self.useDefaultBackground ? settings.backgroundStyle : host.background)
-        }
-        
         /// Changes that can happen on the host itself
         hostChange = DataStore.shared.runtimeVisibleChanges.sink { [weak self] host in
             guard let self = self else { return }
 
             if host.id == self.host.id {
-                self.updateBackground (background: self.useDefaultBackground ? settings.backgroundStyle : host.background)
-                
                 if host.style == "" {
                     self.applyTheme(theme: settings.getTheme())
                 } else {
@@ -158,82 +141,6 @@ public class AppTerminalView: TerminalView {
         }
     }
     
-    override public func didMoveToWindow() {
-        super.didMoveToWindow()
-        if let mh = metalHost {
-            mh.didMoveToWindow(view: self)
-        }
-    }
-    
-    func updateBackground (background: String)
-    {
-        // solid
-        if background == "" {
-            if let m = metalHost {
-                m.stopRunning()
-                metalLayer?.removeFromSuperlayer()
-                metalLayer = nil
-                metalHost = nil
-            }
-        } else {
-            if metalLayer == nil {
-                metalLayer = CAMetalLayer ()
-                metalLayer!.frame = frame
-                //metalLayer?.opacity = 0.4
-
-                // When enabled at runtime didMoveToWindow will not fire again,
-                // so pick up the scale here or the shader renders at 1x
-                if let scale = window?.screen.nativeScale {
-                    metalLayer!.contentsScale = scale
-                }
-
-                // If we are currently attached to a ViewController (ie, we are up and running, as opposed to bootstarpping)
-                // we should insert the layer directioly.
-                if let mySuper = superview {
-                    mySuper.layer.insertSublayer(metalLayer!, at: 0)
-                }
-            }
-
-            if let m = metalHost {
-                if m.fragmentName != background {
-                    m.stopRunning()
-                    metalHost = MetalHost (target: metalLayer!, fragmentName: background)
-                    metalHost!.startRunning()
-                }
-            } else {
-                metalHost = MetalHost (target: metalLayer!, fragmentName: background)
-                metalHost!.startRunning()
-            }
-            backgroundColor = UIColor.clear
-        }
-    }
-    
-    public override var bounds: CGRect {
-        get {
-            return super.bounds
-        }
-        set {
-            super.bounds = newValue
-            
-            if let ml = metalLayer {
-                ml.frame = CGRect (origin: CGPoint.zero, size: newValue.size)
-            }
-        }
-    }
-    
-    public override var frame: CGRect {
-        get {
-            return super.frame
-        }
-        set {
-            super.frame = newValue
-            
-            if let ml = metalLayer {
-                ml.frame = CGRect (origin: CGPoint.zero, size: newValue.size)
-            }
-        }
-    }
-    
     func updateFont (newSize: CGFloat)
     {
         if settings.fontName == "SF Mono" {
@@ -278,9 +185,6 @@ public class AppTerminalView: TerminalView {
         let t = getTerminal()
         t.foregroundColor = theme.foreground
         t.backgroundColor = theme.background
-        if metalHost != nil {
-            nativeBackgroundColor = UIColor.clear
-        }
         self.selectedTextBackgroundColor = makeUIColor (theme.selectionColor)
         self.caretColor = makeUIColor (theme.cursor)
         

@@ -73,12 +73,6 @@ class Settings: ObservableObject {
         }
     }
     
-    @Published var backgroundStyle: String = "" {
-        didSet {
-            defaults?.set (backgroundStyle, forKey: "backgroundStyle")
-        }
-    }
-
     func getTheme (themeName: String? = nil) -> ThemeColor
     {
         if let t = themes.first(where: { $0.name == themeName ?? self.themeName }) {
@@ -98,7 +92,6 @@ class Settings: ObservableObject {
         } else {
             fontSize = 0
         }
-        backgroundStyle = defaults?.string (forKey: "backgroundStyle") ?? ""
     }
 }
 
@@ -267,86 +260,6 @@ struct FontSizeSelector: View {
     }
 }
 
-var shaders = ["digitalbrain_fragment_texture", "plasma_fragment_texture", "starnest_fragment_texture"]
-var shaderToHuman = [
-    "plasma_fragment_texture": "Plasma",
-    "starnest_fragment_texture": "Star Nest",
-    "digitalbrain_fragment_texture": "Digital Brain"
-]
-
-struct LiveBackgroundSelector: View {
-    @Binding var selected: String
-    
-    var body: some View {
-        ScrollView (.horizontal, showsIndicators: false) {
-            HStack {
-                ForEach (shaders, id: \.self) { name in
-                    Button (action: { self.selected = name}) {
-                        MetalView(shaderFunc: name)
-                            .frame(width: 120, height: 90)
-                            .border (self.selected == name ? Color.accentColor : Color.clear, width: 2)
-                            .overlay (
-                                Text (shaderToHuman [name] ?? name)
-                                    .shadow(color: Color.red, radius: 10, x: 5, y: 5)
-                                    .foregroundColor(Color.white)
-                                
-                                    .padding(8)
-                                , alignment: .topLeading)
-                    }
-                }
-            }
-        }
-    }
-}
-
-/// Shows the background selector with the labels:
-/// [Default|Solid|Live]
-///
-/// The "Default" label is only shown if showDefault is true, otherwise it is not shown
-/// 
-struct BackgroundSelector: View {
-    @Binding var backgroundStyle: String
-    @State var backgroundKind: Int = 0
-    
-    // If sets to true shows a selector "Default"
-    @State var showDefault: Bool
-    
-    var body: some View {
-        HStack {
-            VStack {
-                HStack {
-                    Text ("Background")
-                    Spacer ()
-                    Picker(selection: $backgroundKind, label: Text ("Background Style")){
-                        if showDefault {
-                            Text ("Default").tag (0)
-                        }
-                        Text ("Solid").tag (1)
-                        Text ("Live").tag (2)
-                    }
-                    .pickerStyle (SegmentedPickerStyle ())
-                    .onChange(of: backgroundKind) { _ in
-                        if backgroundKind == 0 {
-                            backgroundStyle = "default"
-                        } else if backgroundKind == 1 {
-                            backgroundStyle = ""
-                        } 
-                    }
-                }
-                if backgroundKind == 2 {
-                    LiveBackgroundSelector (selected: $backgroundStyle)
-                }
-            }
-        }.onAppear {
-            if self.backgroundStyle == "default" {
-                self.backgroundKind = self.showDefault ? 0 : 1
-            } else {
-                self.backgroundKind = self.backgroundStyle == "" ? 1 : 2
-            }
-        }
-    }
-}
-
 struct SettingsViewCore: View {
     @Binding var themeName: String
     @Binding var fontName: String
@@ -354,8 +267,7 @@ struct SettingsViewCore: View {
     @Binding var keepOn: Bool
     @Binding var locationTrack: Bool
     @Binding var beepConfig: BeepKind
-    @Binding var backgroundStyle: String
-    
+
     var body: some View {
         return Form {
             Section (header: Text ("Appearance")){
@@ -370,7 +282,6 @@ struct SettingsViewCore: View {
                 }
                 FontSelector (fontName: $fontName)
                 FontSizeSelector (fontName: fontName, fontSize: $fontSize)
-                BackgroundSelector (backgroundStyle: $backgroundStyle, showDefault: false)
             }
             Section {
                 Toggle(isOn: $keepOn) {
@@ -406,8 +317,7 @@ struct SettingsView: View {
                           fontSize: $gset.fontSize,
                           keepOn: $gset.keepOn,
                           locationTrack: $gset.locationTrack,
-                          beepConfig: $gset.beepConfig,
-                          backgroundStyle: $gset.backgroundStyle)
+                          beepConfig: $gset.beepConfig)
     }
 }
 

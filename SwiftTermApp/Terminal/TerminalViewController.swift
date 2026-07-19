@@ -116,9 +116,6 @@ class TerminalViewController: UIViewController {
             terminalView.autoresizingMask = [.flexibleHeight, .flexibleWidth]
             view.addSubview(terminalView)
         }
-        if let ml = terminalView.metalLayer {
-            view.layer.insertSublayer(ml, at: 0)
-        }
         if interactive {
             _ = terminalView.becomeFirstResponder()
         } else {

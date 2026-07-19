@@ -397,64 +397,6 @@ class UITests: XCTestCase {
         app.typeText("mc\ncd /usr\n\tcd /usr/bin\n")
         print ("Here")
     }
-    // Reproduces: selecting the "Live" background tab freezes the UI.
-    // While this test sleeps, the app process can be sampled externally to
-    // capture where the main thread is stuck.
-    func testLiveBackgroundFreeze() throws {
-        let app = XCUIApplication()
-        app.launch()
-
-        // Dismiss the first-run onboarding if it is showing
-        let cont = app.buttons["Continue"].firstMatch
-        if cont.waitForExistence(timeout: 3) {
-            cont.tap()
-        }
-
-        var settingsButton = app.buttons["Settings"].firstMatch
-        if !settingsButton.waitForExistence(timeout: 5) {
-            // iPad: the sidebar starts collapsed, open it first
-            let toggle = app.navigationBars.buttons.firstMatch
-            if toggle.exists {
-                toggle.tap()
-            }
-            settingsButton = app.buttons["Settings"].firstMatch
-            if !settingsButton.waitForExistence(timeout: 5) {
-                print("HIERARCHY-HOME: \(app.debugDescription)")
-                XCTFail("No Settings entry found")
-            }
-        }
-        settingsButton.tap()
-
-        var live = app.buttons["Live"].firstMatch
-        if !live.waitForExistence(timeout: 8) {
-            live = app.segmentedControls.buttons["Live"].firstMatch
-            if !live.exists {
-                print("HIERARCHY-SETTINGS: \(app.debugDescription)")
-                XCTFail("No Live segment found")
-            }
-        }
-        live.tap()
-
-        // Keep the app in this state so it can be sampled
-        sleep(10)
-
-        // If the main thread froze, this will fail
-        let solid = app.buttons["Solid"].firstMatch
-        XCTAssertTrue(solid.isHittable, "UI is not hittable after enabling Live previews")
-
-        // Cycle the previews in and out: destroying the preview views used to
-        // crash with a use-after-free in MetalHostView.deinit
-        for _ in 0..<3 {
-            solid.tap()
-            sleep(2)
-            app.buttons["Live"].firstMatch.tap()
-            sleep(2)
-        }
-        solid.tap()
-        sleep(3)
-        XCTAssertTrue(app.buttons["Live"].firstMatch.isHittable, "UI died after cycling Live previews")
-    }
-
     func testLaunchPerformance() throws {
         if #available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 7.0, *) {
             // This measures how long it takes to launch your application.

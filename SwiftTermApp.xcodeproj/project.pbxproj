@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FA57B20000000000000000B1 /* HelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B20000000000000000A1 /* HelpView.swift */; };
+		FA57B20000000000000000B2 /* UserGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B20000000000000000A2 /* UserGuide.swift */; };
+		FA57B20000000000000000B3 /* CommandReference.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B20000000000000000A3 /* CommandReference.swift */; };
 		02C2FCC8282017A9005EDEC2 /* Shake in Frameworks */ = {isa = PBXBuildFile; productRef = 02C2FCC7282017A9005EDEC2 /* Shake */; };
 		4901167624553789002C1F85 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4901167524553789002C1F85 /* AppDelegate.swift */; };
 		4901167A24553789002C1F85 /* Home.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4901167924553789002C1F85 /* Home.swift */; };
@@ -61,11 +64,6 @@
 		495512CF2800BD2A00B4CDA2 /* SourceCodePro-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 495512CC2800BD2A00B4CDA2 /* SourceCodePro-Bold.ttf */; };
 		495512D02800BD2A00B4CDA2 /* SourceCodePro-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 495512CD2800BD2A00B4CDA2 /* SourceCodePro-BoldItalic.ttf */; };
 		495512D12800BD2A00B4CDA2 /* SourceCodePro-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 495512CE2800BD2A00B4CDA2 /* SourceCodePro-Italic.ttf */; };
-		49584D83248C3BEA0081D015 /* MetalHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49584D82248C3BEA0081D015 /* MetalHost.swift */; };
-		49584D85248C3C500081D015 /* ShadersBase.metal in Sources */ = {isa = PBXBuildFile; fileRef = 49584D84248C3C500081D015 /* ShadersBase.metal */; };
-		49584D87248C3C7F0081D015 /* PlasmaGlobe.metal in Sources */ = {isa = PBXBuildFile; fileRef = 49584D86248C3C7F0081D015 /* PlasmaGlobe.metal */; };
-		49584D89248C3D570081D015 /* StarNest.metal in Sources */ = {isa = PBXBuildFile; fileRef = 49584D88248C3D570081D015 /* StarNest.metal */; };
-		49584D8C248C41620081D015 /* MetalSwiftUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49584D8B248C41620081D015 /* MetalSwiftUI.swift */; };
 		4967B9FC2459239700A9D2A6 /* Connections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4967B9FB2459239700A9D2A6 /* Connections.swift */; };
 		4967B9FE24592D0B00A9D2A6 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4967B9FD24592D0B00A9D2A6 /* SettingsView.swift */; };
 		4967BA0224592D3600A9D2A6 /* SessionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4967BA0124592D3600A9D2A6 /* SessionsView.swift */; };
@@ -78,7 +76,6 @@
 		499D8EBA268A690600CCEF9D /* ColumnSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 499D8EB9268A690600CCEF9D /* ColumnSelector.swift */; };
 		49A0A2BE2491C792002593F7 /* LazyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49A0A2BD2491C792002593F7 /* LazyView.swift */; };
 		49A0A2C02491CDC4002593F7 /* InteractiveLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49A0A2BF2491CDC4002593F7 /* InteractiveLogin.swift */; };
-		49A0A2C2249298BF002593F7 /* DigitalBrain.metal in Sources */ = {isa = PBXBuildFile; fileRef = 49A0A2C1249298BF002593F7 /* DigitalBrain.metal */; };
 		49A4466126A3D76200A636DC /* Commands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49A4466026A3D76200A636DC /* Commands.swift */; };
 		49A64C6126842A480069C7FA /* HostConnectionClosed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49A64C6026842A480069C7FA /* HostConnectionClosed.swift */; };
 		49B49D9C27A9B7F00031A9AE /* SFTP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49B49D9B27A9B7F00031A9AE /* SFTP.swift */; };
@@ -143,6 +140,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		FA57B20000000000000000A1 /* HelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpView.swift; sourceTree = "<group>"; };
+		FA57B20000000000000000A2 /* UserGuide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserGuide.swift; sourceTree = "<group>"; };
+		FA57B20000000000000000A3 /* CommandReference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandReference.swift; sourceTree = "<group>"; };
 		4901167224553789002C1F85 /* SwiftTermApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwiftTermApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4901167524553789002C1F85 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		4901167924553789002C1F85 /* Home.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Home.swift; sourceTree = "<group>"; };
@@ -198,12 +198,6 @@
 		495512CC2800BD2A00B4CDA2 /* SourceCodePro-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "SourceCodePro-Bold.ttf"; sourceTree = "<group>"; };
 		495512CD2800BD2A00B4CDA2 /* SourceCodePro-BoldItalic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "SourceCodePro-BoldItalic.ttf"; sourceTree = "<group>"; };
 		495512CE2800BD2A00B4CDA2 /* SourceCodePro-Italic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "SourceCodePro-Italic.ttf"; sourceTree = "<group>"; };
-		49584D82248C3BEA0081D015 /* MetalHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalHost.swift; sourceTree = "<group>"; };
-		49584D84248C3C500081D015 /* ShadersBase.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = ShadersBase.metal; sourceTree = "<group>"; };
-		49584D86248C3C7F0081D015 /* PlasmaGlobe.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = PlasmaGlobe.metal; sourceTree = "<group>"; };
-		49584D88248C3D570081D015 /* StarNest.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = StarNest.metal; sourceTree = "<group>"; };
-		49584D8A248C40270081D015 /* SwiftTermShaders.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SwiftTermShaders.h; sourceTree = "<group>"; };
-		49584D8B248C41620081D015 /* MetalSwiftUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalSwiftUI.swift; sourceTree = "<group>"; };
 		4967B9FB2459239700A9D2A6 /* Connections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Connections.swift; sourceTree = "<group>"; };
 		4967B9FD24592D0B00A9D2A6 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		4967BA0124592D3600A9D2A6 /* SessionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsView.swift; sourceTree = "<group>"; };
@@ -217,7 +211,6 @@
 		499D8EB9268A690600CCEF9D /* ColumnSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColumnSelector.swift; sourceTree = "<group>"; };
 		49A0A2BD2491C792002593F7 /* LazyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LazyView.swift; sourceTree = "<group>"; };
 		49A0A2BF2491CDC4002593F7 /* InteractiveLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveLogin.swift; sourceTree = "<group>"; };
-		49A0A2C1249298BF002593F7 /* DigitalBrain.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = DigitalBrain.metal; sourceTree = "<group>"; };
 		49A4466026A3D76200A636DC /* Commands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Commands.swift; sourceTree = "<group>"; };
 		49A64C6026842A480069C7FA /* HostConnectionClosed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostConnectionClosed.swift; sourceTree = "<group>"; };
 		49B49D9B27A9B7F00031A9AE /* SFTP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SFTP.swift; sourceTree = "<group>"; };
@@ -342,13 +335,13 @@
 				495512C72800BAB000B4CDA2 /* Fonts */,
 				4943DA6227F3BA3F00E4E2F5 /* History */,
 				49BA35DE267991B800B63510 /* Home */,
+				FA57B20000000000000000C1 /* Help */,
 				49BA35EB267BE79A00B63510 /* HostKeys */,
 				49C216C3245D101200280B6A /* Hosts */,
 				49C216C4245D102600280B6A /* Keys */,
 				490116802455378A002C1F85 /* LaunchScreen.storyboard */,
 				49F1D12927DA545C004A9CB1 /* Licenses */,
 				4923C56427319327000CC371 /* Location */,
-				49584D81248C3BD80081D015 /* Metal */,
 				49C650B52832F384005DFC17 /* Model */,
 				4901167D2455378A002C1F85 /* Preview Content */,
 				49F073E7247B6B5E00A83CDC /* Sessions */,
@@ -456,20 +449,6 @@
 			path = Fonts;
 			sourceTree = "<group>";
 		};
-		49584D81248C3BD80081D015 /* Metal */ = {
-			isa = PBXGroup;
-			children = (
-				49584D82248C3BEA0081D015 /* MetalHost.swift */,
-				49584D84248C3C500081D015 /* ShadersBase.metal */,
-				49584D86248C3C7F0081D015 /* PlasmaGlobe.metal */,
-				49584D88248C3D570081D015 /* StarNest.metal */,
-				49584D8A248C40270081D015 /* SwiftTermShaders.h */,
-				49584D8B248C41620081D015 /* MetalSwiftUI.swift */,
-				49A0A2C1249298BF002593F7 /* DigitalBrain.metal */,
-			);
-			path = Metal;
-			sourceTree = "<group>";
-		};
 		4967BA05245A85E200A9D2A6 /* SwCrypt */ = {
 			isa = PBXGroup;
 			children = (
@@ -533,6 +512,16 @@
 				49BA35A3267847E100B63510 /* PEMtoSSH.swift */,
 			);
 			path = SwiftyRSA;
+			sourceTree = "<group>";
+		};
+		FA57B20000000000000000C1 /* Help */ = {
+			isa = PBXGroup;
+			children = (
+				FA57B20000000000000000A1 /* HelpView.swift */,
+				FA57B20000000000000000A2 /* UserGuide.swift */,
+				FA57B20000000000000000A3 /* CommandReference.swift */,
+			);
+			path = Help;
 			sourceTree = "<group>";
 		};
 		49BA35DE267991B800B63510 /* Home */ = {
@@ -829,11 +818,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				49584D85248C3C500081D015 /* ShadersBase.metal in Sources */,
+				FA57B20000000000000000B1 /* HelpView.swift in Sources */,
+				FA57B20000000000000000B2 /* UserGuide.swift in Sources */,
+				FA57B20000000000000000B3 /* CommandReference.swift in Sources */,
 				49F5BEE628372F5300BAF3EF /* DataModelTypes.swift in Sources */,
 				49BA35E2267993E800B63510 /* DefaultHomeView.swift in Sources */,
 				4901168A245540F2002C1F85 /* HostEditView.swift in Sources */,
-				49584D83248C3BEA0081D015 /* MetalHost.swift in Sources */,
 				49BA35A626784B6B00B63510 /* Passphrase.swift in Sources */,
 				49C1B6BE24637DD500D54F6F /* ButtonColors.swift in Sources */,
 				4943DA6627F4B11A00E4E2F5 /* HistoryController.swift in Sources */,
@@ -853,7 +843,6 @@
 				4943DA8E27FB712F00E4E2F5 /* Onboard.swift in Sources */,
 				49CA50E827EBBD0D00CA444E /* EnvironmentVariables.swift in Sources */,
 				493F4F3227650E7800838AC7 /* Errors.swift in Sources */,
-				49584D89248C3D570081D015 /* StarNest.metal in Sources */,
 				49C1B6B72462611F00D54F6F /* SshTerminalView.swift in Sources */,
 				49A64C6126842A480069C7FA /* HostConnectionClosed.swift in Sources */,
 				49011692245622C6002C1F85 /* DataStore.swift in Sources */,
@@ -890,9 +879,6 @@
 				FA57B10FE5D1AB000000001C /* AiCommandView.swift in Sources */,
 				49BA35982676EEB600B63510 /* KeyTools.swift in Sources */,
 				49BA359A2676EFD200B63510 /* CreateLocalKeyButtons.swift in Sources */,
-				49A0A2C2249298BF002593F7 /* DigitalBrain.metal in Sources */,
-				49584D87248C3C7F0081D015 /* PlasmaGlobe.metal in Sources */,
-				49584D8C248C41620081D015 /* MetalSwiftUI.swift in Sources */,
 				49A0A2BE2491C792002593F7 /* LazyView.swift in Sources */,
 				4943DA9827FC87DE00E4E2F5 /* RecentHostsView.swift in Sources */,
 				49C650952832D8B2005DFC17 /* Main.xcdatamodeld in Sources */,

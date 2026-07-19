@@ -258,6 +258,11 @@ struct HomeView: View {
             
             Section {
                 NavigationLink(
+                    destination: HelpView(),
+                    label: {
+                        Label("Help", systemImage: "questionmark.circle")
+                    })
+                NavigationLink(
                     destination: CreditsView(),
                     label: {
                         Label("Credits", systemImage: "info.circle")

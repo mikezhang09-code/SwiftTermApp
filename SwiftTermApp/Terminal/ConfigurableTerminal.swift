@@ -12,14 +12,11 @@ struct RunningTerminalConfig: View {
     @State var host: Host
     @Binding var showingModal: Bool
     @State var style: String = ""
-    @State var background: String = ""
     @State var fontName: String = ""
     @State var fontSize: CGFloat = 0
-     
+
     func save () {
         host.style = style
-        host.background = background
-        print ("Background set is: \(background)")
         DataStore.shared.saveState()
         DataStore.shared.runtimeVisibleChanges.send(host)
         settings.fontName = fontName
@@ -33,7 +30,6 @@ struct RunningTerminalConfig: View {
                 ThemeSelector(themeName: $style, showDefault: true) { t in
                     style = t
                 }
-                BackgroundSelector (backgroundStyle: $background, showDefault: true)
                 FontSelector (fontName: $fontName)
                 FontSizeSelector (fontName: fontName, fontSize: $fontSize)
             }
@@ -53,7 +49,6 @@ struct RunningTerminalConfig: View {
         }
         .onAppear() {
             style = host.style
-            background = host.background
             fontSize = settings.fontSize
             fontName = settings.fontName
         }

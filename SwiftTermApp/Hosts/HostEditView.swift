@@ -131,7 +131,6 @@ struct HostEditView: View {
     @State var hostname = ""
     @State var backspaceAsControlH = false
     @State var style = ""
-    @State var backgroundStyle = ""
     @State var hostKind = ""
     @State var username = ""
     @State var password = ""
@@ -157,7 +156,6 @@ struct HostEditView: View {
             _password = State (initialValue: host.password)
             _hostKind = State (initialValue: host.hostKind)
             _style = State (initialValue: host.style)
-            _backgroundStyle = State (initialValue: host.background)
             _sshKey = State (initialValue: host.sshKey)
             _environmentVariables = State (initialValue: host.environmentVariables)
             switch host.reconnectType {
@@ -195,7 +193,8 @@ struct HostEditView: View {
         host.username = username
         host.password = password
         host.hostKind = hostKind
-        host.background = backgroundStyle
+        // Live/shader backgrounds were removed; terminals always use the theme's solid color
+        host.background = ""
         host.style = style
         host.sshKey = sshKey
         host.reconnectType = reconnectType == 1 ? "tmux" : ""
@@ -301,8 +300,7 @@ struct HostEditView: View {
                 
                 Section (header: Text ("Appearance")){
                     ThemeSelector(themeName: self.$style, showDefault: true) { t in self.style = t }
-                    BackgroundSelector (backgroundStyle: self.$backgroundStyle, showDefault: true)
-                    
+
                     //PlatformSelector(platformName: $platformName) {x in }
                     HostIconSelector (platformName: $hostKind)
                     

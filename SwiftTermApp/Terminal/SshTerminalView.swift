@@ -379,10 +379,6 @@ public class SshTerminalView: AppTerminalView, TerminalViewDelegate, SessionDele
         }
         self.session = activeSession
         activeSession.track(terminal: self)
-
-        if !useDefaultBackground {
-            updateBackground(background: host.background)
-        }
     }
     
     /// This flag indicates that this terminal view would like to get a callback if the session drops and reconnects
