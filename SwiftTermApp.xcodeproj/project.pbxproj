@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FA57B20000000000000000B4 /* CommandsUnix.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B20000000000000000A4 /* CommandsUnix.swift */; };
+		FA57B20000000000000000B5 /* CommandsPowerShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B20000000000000000A5 /* CommandsPowerShell.swift */; };
 		FA57B20000000000000000B1 /* HelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B20000000000000000A1 /* HelpView.swift */; };
 		FA57B20000000000000000B2 /* UserGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B20000000000000000A2 /* UserGuide.swift */; };
 		FA57B20000000000000000B3 /* CommandReference.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57B20000000000000000A3 /* CommandReference.swift */; };
@@ -140,6 +142,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		FA57B20000000000000000A4 /* CommandsUnix.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandsUnix.swift; sourceTree = "<group>"; };
+		FA57B20000000000000000A5 /* CommandsPowerShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandsPowerShell.swift; sourceTree = "<group>"; };
 		FA57B20000000000000000A1 /* HelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpView.swift; sourceTree = "<group>"; };
 		FA57B20000000000000000A2 /* UserGuide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserGuide.swift; sourceTree = "<group>"; };
 		FA57B20000000000000000A3 /* CommandReference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandReference.swift; sourceTree = "<group>"; };
@@ -520,6 +524,8 @@
 				FA57B20000000000000000A1 /* HelpView.swift */,
 				FA57B20000000000000000A2 /* UserGuide.swift */,
 				FA57B20000000000000000A3 /* CommandReference.swift */,
+				FA57B20000000000000000A4 /* CommandsUnix.swift */,
+				FA57B20000000000000000A5 /* CommandsPowerShell.swift */,
 			);
 			path = Help;
 			sourceTree = "<group>";
@@ -821,6 +827,8 @@
 				FA57B20000000000000000B1 /* HelpView.swift in Sources */,
 				FA57B20000000000000000B2 /* UserGuide.swift in Sources */,
 				FA57B20000000000000000B3 /* CommandReference.swift in Sources */,
+				FA57B20000000000000000B4 /* CommandsUnix.swift in Sources */,
+				FA57B20000000000000000B5 /* CommandsPowerShell.swift in Sources */,
 				49F5BEE628372F5300BAF3EF /* DataModelTypes.swift in Sources */,
 				49BA35E2267993E800B63510 /* DefaultHomeView.swift in Sources */,
 				4901168A245540F2002C1F85 /* HostEditView.swift in Sources */,

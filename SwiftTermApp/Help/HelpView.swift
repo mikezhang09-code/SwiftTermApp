@@ -58,12 +58,7 @@ struct GuideTopicView: View {
                     VStack (alignment: .leading, spacing: 8) {
                         Text (section.heading)
                             .font (.headline)
-                        // The bodies are authored as Markdown; falling back to the
-                        // raw string keeps a malformed entry readable rather than blank.
-                        Text ((try? AttributedString (
-                            markdown: section.body,
-                            options: .init (interpretedSyntax: .inlineOnlyPreservingWhitespace)))
-                              ?? AttributedString (section.body))
+                        Text (helpMarkdown (section.body))
                             .font (.body)
                             .fixedSize (horizontal: false, vertical: true)
                     }
@@ -92,7 +87,8 @@ struct CommandReferenceView: View {
         }
         return groups.compactMap { group in
             let matches = group.entries.filter { $0.searchText.lowercased ().contains (needle) }
-            return matches.isEmpty ? nil : CommandCategory (name: group.name, icon: group.icon, entries: matches)
+            return matches.isEmpty ? nil : CommandCategory (name: group.name, icon: group.icon,
+                                                            intro: group.intro, entries: matches)
         }
     }
 
@@ -112,9 +108,19 @@ struct CommandReferenceView: View {
                         .foregroundColor (.secondary)
                 } else {
                     ForEach (visibleGroups) { group in
-                        Section (header: Label (group.name, systemImage: group.icon)) {
+                        Section {
                             ForEach (group.entries) { entry in
                                 CommandRow (entry: entry)
+                            }
+                        } header: {
+                            Label (group.name, systemImage: group.icon)
+                        } footer: {
+                            // Only worth showing when the whole group is on screen;
+                            // during a search the intro describes commands that were
+                            // filtered out.
+                            if !group.intro.isEmpty && search.isEmpty {
+                                Text (helpMarkdown (group.intro))
+                                    .font (.caption)
                             }
                         }
                     }
@@ -128,59 +134,164 @@ struct CommandReferenceView: View {
     }
 }
 
+/// A terminal is only offered as an insert target when one is on screen;
+/// reaching Help from the home screen usually means there is none.
+private var activeTerminal: AppTerminalView? {
+    TerminalViewController.visibleTerminal
+}
+
+private func copyToPasteboard (_ text: String) {
+    UIPasteboard.general.string = text
+}
+
+/// Deliberately sends no trailing newline: the text lands at the prompt so it
+/// can be read and edited before it runs.
+private func insertInTerminal (_ text: String) {
+    activeTerminal?.send (Array (text.utf8))
+}
+
+/// The shared Copy / Insert actions, used by both the list rows and the
+/// examples on the detail page.
+@ViewBuilder
+private func commandActions (for text: String) -> some View {
+    Button {
+        copyToPasteboard (text)
+    } label: {
+        Label ("Copy", systemImage: "doc.on.doc")
+    }
+    if activeTerminal != nil {
+        Button {
+            insertInTerminal (text)
+        } label: {
+            Label ("Insert into Terminal", systemImage: "terminal")
+        }
+    }
+}
+
 struct CommandRow: View {
+    let entry: CommandEntry
+
+    var body: some View {
+        NavigationLink (destination: CommandDetailView (entry: entry)) {
+            VStack (alignment: .leading, spacing: 3) {
+                Text (entry.command)
+                    .font (.system (.body, design: .monospaced))
+                Text (entry.summary)
+                    .font (.caption)
+                    .foregroundColor (.secondary)
+                    .fixedSize (horizontal: false, vertical: true)
+            }
+        }
+        .contextMenu {
+            commandActions (for: entry.command)
+        }
+    }
+}
+
+/// The explanation page for a single command: what it does, worked examples,
+/// and the mistake people actually make with it.
+struct CommandDetailView: View {
     let entry: CommandEntry
     @State private var copied = false
 
-    /// A terminal is only offered as an insert target when one is on screen;
-    /// reaching Help from the home screen usually means there is none.
-    private var activeTerminal: AppTerminalView? {
-        TerminalViewController.visibleTerminal
-    }
-
     var body: some View {
-        VStack (alignment: .leading, spacing: 3) {
-            HStack {
-                Text (entry.command)
-                    .font (.system (.body, design: .monospaced))
-                    .textSelection (.enabled)
-                Spacer ()
-                if copied {
-                    Image (systemName: "checkmark")
+        ScrollView {
+            VStack (alignment: .leading, spacing: 20) {
+                // The command itself, with the actions right where you land
+                VStack (alignment: .leading, spacing: 10) {
+                    Text (entry.command)
+                        .font (.system (.title3, design: .monospaced))
+                        .textSelection (.enabled)
+                        .fixedSize (horizontal: false, vertical: true)
+                    Text (entry.summary)
+                        .font (.subheadline)
                         .foregroundColor (.secondary)
-                        .font (.caption)
+                        .fixedSize (horizontal: false, vertical: true)
+                    HStack (spacing: 12) {
+                        Button {
+                            copyToPasteboard (entry.command)
+                            copied = true
+                            DispatchQueue.main.asyncAfter (deadline: .now () + 1.2) { copied = false }
+                        } label: {
+                            Label (copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc")
+                                .font (.callout)
+                        }
+                        if activeTerminal != nil {
+                            Button {
+                                insertInTerminal (entry.command)
+                            } label: {
+                                Label ("Insert", systemImage: "terminal")
+                                    .font (.callout)
+                            }
+                        }
+                    }
+                }
+                .padding ()
+                .frame (maxWidth: .infinity, alignment: .leading)
+                .background (Color (.secondarySystemBackground))
+                .cornerRadius (10)
+
+                if !entry.detail.isEmpty {
+                    VStack (alignment: .leading, spacing: 8) {
+                        Text ("What it does")
+                            .font (.headline)
+                        Text (helpMarkdown (entry.detail))
+                            .fixedSize (horizontal: false, vertical: true)
+                    }
+                }
+
+                if !entry.examples.isEmpty {
+                    VStack (alignment: .leading, spacing: 12) {
+                        Text ("Examples")
+                            .font (.headline)
+                        ForEach (entry.examples) { example in
+                            ExampleRow (example: example)
+                        }
+                    }
+                }
+
+                if let caution = entry.caution {
+                    HStack (alignment: .top, spacing: 10) {
+                        Image (systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor (.orange)
+                        Text (helpMarkdown (caution))
+                            .font (.callout)
+                            .fixedSize (horizontal: false, vertical: true)
+                    }
+                    .padding ()
+                    .frame (maxWidth: .infinity, alignment: .leading)
+                    .background (Color.orange.opacity (0.12))
+                    .cornerRadius (10)
                 }
             }
-            Text (entry.summary)
+            .padding ()
+            .frame (maxWidth: .infinity, alignment: .leading)
+        }
+        .navigationTitle (entry.command)
+        .navigationBarTitleDisplayMode (.inline)
+    }
+}
+
+struct ExampleRow: View {
+    let example: CommandExample
+
+    var body: some View {
+        VStack (alignment: .leading, spacing: 4) {
+            Text (example.code)
+                .font (.system (.callout, design: .monospaced))
+                .textSelection (.enabled)
+                .fixedSize (horizontal: false, vertical: true)
+            Text (helpMarkdown (example.explanation))
                 .font (.caption)
                 .foregroundColor (.secondary)
                 .fixedSize (horizontal: false, vertical: true)
         }
-        .contentShape (Rectangle ())
-        .onTapGesture { copy () }
+        .frame (maxWidth: .infinity, alignment: .leading)
+        .padding (10)
+        .background (Color (.secondarySystemBackground))
+        .cornerRadius (8)
         .contextMenu {
-            Button {
-                copy ()
-            } label: {
-                Label ("Copy", systemImage: "doc.on.doc")
-            }
-            if let terminal = activeTerminal {
-                Button {
-                    // Deliberately no trailing newline: the command is typed into
-                    // the prompt so it can be read and edited before it runs.
-                    terminal.send (Array (entry.command.utf8))
-                } label: {
-                    Label ("Insert into Terminal", systemImage: "terminal")
-                }
-            }
-        }
-    }
-
-    func copy () {
-        UIPasteboard.general.string = entry.command
-        copied = true
-        DispatchQueue.main.asyncAfter (deadline: .now () + 1.2) {
-            copied = false
+            commandActions (for: example.code)
         }
     }
 }

@@ -175,9 +175,10 @@ let userGuideTopics: [GuideTopic] = [
             GuideSection (
                 heading: "Control and escape",
                 body: """
-                Tap **⌃** and then a letter to send a control character — `⌃` then `c` sends Ctrl-C to \
+                Tap **⌃** and then a letter to send a control character — `⌃` then `c` sends Ctrl-c to \
                 interrupt whatever is running, `⌃` then `d` sends end-of-file.  The modifier applies to \
-                exactly one following key.
+                exactly one following key.  There is no Shift involved: the key really is the lowercase \
+                letter, which is why the keyboard bar labels the tmux prefix `⌃b`.
 
                 **esc** and **tab** have their own keys in the bar, as do the arrow keys.
                 """),
