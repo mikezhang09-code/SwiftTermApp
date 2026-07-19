@@ -104,20 +104,30 @@ let userGuideTopics: [GuideTopic] = [
                         "On the home screen, tap {desktopcomputer} **Hosts**.",
                         "Tap **+** in the top right.",
                         "Fill in **Alias** — the name you will see in your list. Something like *work laptop* or *prod web*.",
-                        "Fill in **Host** — the address of the machine.",
+                        "Fill in **Host** — the address of the machine, such as `192.168.1.100`.",
                         "Fill in **Username** — who you log in as.",
-                        "Leave **Port** empty unless your server uses something other than 22.",
                     ]),
-                    .tip ("The alias is purely for you. Pick what you will recognise in six months, not the hostname you already forgot."),
+                    .tip ("""
+                    The alias is purely for you. Pick what you will recognise in six months, not the \
+                    hostname you already forgot.
+
+                    Connecting on a port other than 22? It is not with these fields — scroll down to \
+                    **Other Options**, where **Port** sits alongside **Environment Variables**. \
+                    Leaving it blank means 22.
+                    """),
                 ]),
 
             GuideSection (
                 heading: "Step 2 — Choose how you log in",
                 blocks: [
                     .prose ("""
-                    In the same form, either turn on **Use password**, or attach an SSH key you have \
-                    created under {key} **Keys**.
+                    Still in the same form, the **Authentication** row is a two-way switch between \
+                    **Password** and **SSH Key**. What appears underneath changes with your choice:
                     """),
+                    .bullets ([
+                        "**Password** — a **Password** field appears. The {eye} button reveals what you typed, in case a long password went in wrong.",
+                        "**SSH Key** — a key picker appears, listing the keys from {key} **Keys**.",
+                    ]),
                     .prose ("""
                     Keys are strongly preferred. They live in the iOS keychain, they cannot be \
                     shoulder-surfed or guessed, and a lot of servers refuse password logins outright. \
@@ -273,67 +283,159 @@ let userGuideTopics: [GuideTopic] = [
         summary: "Three input modes, modifiers and function keys",
         sections: [
             GuideSection (
-                heading: "Three modes",
-                body: """
-                The bar above the keyboard has a button that cycles between three modes:
+                heading: "The bar above the keyboard",
+                blocks: [
+                    .prose ("""
+                    A terminal needs keys a phone keyboard does not have, so the app adds its own bar \
+                    just above the keyboard.  It carries:
+                    """),
+                    .bullets ([
+                        "**esc** {escape} — the Escape key, which vi and many full-screen programs lean on.",
+                        "**ctrl** {control} — the Control modifier.  See below.",
+                        "{arrow.right.to.line.compact} — Tab, for completing file names.",
+                        "{arrow.left} {arrow.up} {arrow.down} {arrow.right} — arrows, for moving the cursor and walking back through history.",
+                        "{hand.draw} — switches dragging between moving the cursor and selecting text.",
+                        "{keyboard.chevron.compact.down} — hides the keyboard to give the terminal the whole screen.",
+                    ]),
+                ]),
 
-                - **System** — the normal iOS keyboard, with the accessory bar on top for terminal keys.
-                - **App QWERTY** — the app's own keyboard.  Use this when the system keyboard refuses \
-                to appear, which notably happens while an Apple Pencil is in use.
-                - **Function pad** — a compact grid of function and navigation keys.
-
-                The mode you pick is remembered between launches.
-                """),
             GuideSection (
-                heading: "Control and escape",
-                body: """
-                Tap **⌃** and then a letter to send a control character — `⌃` then `c` sends Ctrl-c to \
-                interrupt whatever is running, `⌃` then `d` sends end-of-file.  The modifier applies to \
-                exactly one following key.  There is no Shift involved: the key really is the lowercase \
-                letter, which is why the keyboard bar labels the tmux prefix `⌃b`.
+                heading: "Three keyboard modes",
+                blocks: [
+                    .prose ("""
+                    One button on that bar cycles between three input modes.  Its icon tells you which \
+                    one you are in, and the choice is remembered between launches.
+                    """),
+                    .bullets ([
+                        "{keyboard} **System** — the normal iOS keyboard.  The right choice almost always.",
+                        "{keyboard.fill} **App QWERTY** — the app's own keyboard, for when the system one refuses to appear.",
+                        "{function} **Function pad** — a compact grid of function keys for programs that want them.",
+                    ]),
+                    .tip ("""
+                    If the keyboard disappears and will not come back while you are using an Apple \
+                    Pencil, that is exactly the problem App QWERTY exists to route around.  Tap the \
+                    mode button until you reach {keyboard.fill}.
+                    """),
+                ]),
 
-                **esc** and **tab** have their own keys in the bar, as do the arrow keys.
-                """),
+            GuideSection (
+                heading: "Sending Control keys",
+                blocks: [
+                    .prose ("""
+                    Control combinations talk to the running program rather than the shell.  Tap \
+                    **ctrl**, then the letter — the modifier applies to exactly one following key and \
+                    then switches itself off.
+                    """),
+                    .prose ("Pressing **ctrl** then `c` to stop a log you are following looks like this:"),
+                    .terminal ([
+                        "$ tail -f /var/log/syslog",
+                        "Jul 19 09:14:02 web nginx: started",
+                        "^C",
+                        "$ ",
+                    ]),
+                    .prose ("The four worth committing to memory:"),
+                    .bullets ([
+                        "**ctrl** then `c` — interrupt what is running.  The way out of a stuck command.",
+                        "**ctrl** then `d` — end of input; at an empty prompt it logs you out.",
+                        "**ctrl** then `r` — search backwards through your command history.",
+                        "**ctrl** then `z` — suspend the program; type `fg` to bring it back.",
+                    ]),
+                    .tip ("""
+                    No Shift is involved: the key really is the lowercase letter.  That is why the bar \
+                    labels the tmux prefix `⌃b` and not `⌃B`.
+                    """),
+                ]),
+
             GuideSection (
                 heading: "Hardware keyboards",
-                body: """
-                With an external keyboard attached, modifiers work as you would expect and the on-screen \
-                bar collapses out of the way.  You can also hide or show the keyboard with the keyboard \
-                button in the terminal's toolbar.
-                """),
+                blocks: [
+                    .prose ("""
+                    With an external keyboard attached, modifiers work as you would expect and the \
+                    on-screen bar collapses out of the way.  The {keyboard} button in the terminal's \
+                    toolbar shows or hides the on-screen keyboard at any time.
+                    """),
+                ]),
+
             GuideSection (
-                heading: "Font size",
-                body: """
-                Pinch to zoom inside the terminal to change the font size for that session.  The global \
-                default lives in **Settings**.
-                """),
+                heading: "Making the text bigger",
+                blocks: [
+                    .prose ("""
+                    Pinch to zoom inside the terminal to change the font size for that session alone.  \
+                    The global default lives in {gear} **Settings**, where leaving the size on the \
+                    system default lets it follow Dynamic Type.
+                    """),
+                ]),
         ]),
 
     GuideTopic (
         title: "Files and Transfers",
         icon: "folder",
-        summary: "The built-in SFTP browser",
+        summary: "Browsing and moving files over SFTP",
         sections: [
             GuideSection (
-                heading: "Browsing",
-                body: """
-                The **folder** button in a terminal's toolbar opens an SFTP browser on the same \
-                connection — no second login, no extra credentials.  You can navigate directories, and \
-                the `..` entry takes you back up.
-                """),
+                heading: "Opening the file browser",
+                blocks: [
+                    .prose ("""
+                    The {folder} button in a connected terminal's toolbar opens a file browser running \
+                    over the *same* SSH connection — no second login, no extra password, nothing to \
+                    configure.
+                    """),
+                    .prose ("Along the top of the browser:"),
+                    .bullets ([
+                        "{arrow.turn.left.up} **..** — go up one directory.",
+                        "{folder.badge.plus} — create a new directory here.",
+                        "{square.and.arrow.up.on.square} — upload a file from your device.",
+                        "{arrow.clockwise} — reload, if something changed on the server.",
+                        "**Done** — close the browser and return to the terminal.",
+                    ]),
+                ]),
+
             GuideSection (
-                heading: "Transferring",
-                body: """
-                Download a file to view or save it locally, or upload from the Files app.  Large \
-                transfers continue while you keep using the terminal.
-                """),
+                heading: "Working with a file",
+                blocks: [
+                    .steps ([
+                        "Tap a {folder.fill} folder to go into it.",
+                        "Tap a {doc} file to download it, then save or share it wherever you like.",
+                        "Swipe a row left and tap {trash} **Delete** to remove it from the server.",
+                    ]),
+                    .tip ("""
+                    Deleting here deletes on the *server*.  There is no trash to recover it from, so \
+                    check which host you are connected to first.
+                    """),
+                ]),
+
             GuideSection (
-                heading: "When SFTP is unavailable",
-                body: """
-                SFTP needs the SSH server's SFTP subsystem to be enabled.  If the browser reports it \
-                cannot start, check that `Subsystem sftp` is present in the server's `sshd_config`.  \
-                You can always fall back to `scp` or `base64` inside the terminal.
-                """),
+                heading: "Private keys get special treatment",
+                blocks: [
+                    .prose ("""
+                    Tap a file that looks like a private key — shown with a {key} icon — and the app \
+                    offers to **Import as SSH Key** rather than just downloading it.  That puts it \
+                    straight into {key} **Keys**, where it can be attached to a host.
+                    """),
+                    .prose ("""
+                    It is a quick way to adopt a key that already exists on a server you can reach, \
+                    without copying it through anything less trustworthy.
+                    """),
+                ]),
+
+            GuideSection (
+                heading: "If the browser will not open",
+                blocks: [
+                    .prose ("""
+                    SFTP is a *subsystem* of the SSH server, and it can be switched off independently \
+                    of shell access.  If the browser reports it cannot start, check that the server's \
+                    `sshd_config` has this line:
+                    """),
+                    .terminal ([
+                        "$ grep -i sftp /etc/ssh/sshd_config",
+                        "Subsystem sftp /usr/lib/openssh/sftp-server",
+                    ]),
+                    .prose ("""
+                    If it is missing or commented out, the shell still works but no SFTP client will \
+                    connect.  You can always fall back to `scp` and `rsync` from inside the terminal — \
+                    both are in the **Command Reference**.
+                    """),
+                ]),
         ]),
 
     GuideTopic (
