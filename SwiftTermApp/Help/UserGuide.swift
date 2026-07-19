@@ -9,12 +9,60 @@
 
 import SwiftUI
 
+/// The kinds of content a guide section can hold.
+///
+/// Text carrying a `{symbolname}` token renders the live SF Symbol inline, so
+/// the icon shown in the guide is the same one drawn in the toolbar and can
+/// never drift out of date the way a screenshot would.
+enum GuideBlock: Identifiable {
+    /// A paragraph, rendered as Markdown.
+    case prose (String)
+    /// Numbered steps, to be followed in order.
+    case steps ([String])
+    /// An unordered list, for things that are not a sequence.
+    case bullets ([String])
+    /// A terminal transcript.  Lines starting with "$ " are shown as input.
+    case terminal ([String])
+    /// A short aside worth noticing.
+    case tip (String)
+
+    var id: String {
+        switch self {
+        case .prose (let s): return "p" + s
+        case .steps (let s): return "s" + s.joined ()
+        case .bullets (let s): return "b" + s.joined ()
+        case .terminal (let s): return "t" + s.joined ()
+        case .tip (let s): return "n" + s
+        }
+    }
+
+    var searchText: String {
+        switch self {
+        case .prose (let s), .tip (let s): return s
+        case .steps (let s), .bullets (let s), .terminal (let s):
+            return s.joined (separator: " ")
+        }
+    }
+}
+
 /// A single block inside a guide topic.  Bodies are rendered as Markdown, so
 /// they can use **bold**, `code` and bullet lists.
 struct GuideSection: Identifiable {
     let id = UUID ()
     let heading: String
-    let body: String
+    let blocks: [GuideBlock]
+
+    init (heading: String, blocks: [GuideBlock]) {
+        self.heading = heading
+        self.blocks = blocks
+    }
+
+    /// Prose-only section, which is what most topics still are.
+    init (heading: String, body: String) {
+        self.init (heading: heading, blocks: [.prose (body)])
+    }
+
+    var body: String { blocks.map { $0.searchText }.joined (separator: " ") }
 }
 
 struct GuideTopic: Identifiable {
@@ -37,38 +85,102 @@ let userGuideTopics: [GuideTopic] = [
         summary: "Make your first connection",
         sections: [
             GuideSection (
-                heading: "Add a host",
-                body: """
-                Open **Hosts** from the home screen and tap the **+** button.  At a minimum you need a \
-                *nickname*, the *hostname* or IP address, and a *username*.  The port defaults to 22.
+                heading: "What you will need",
+                blocks: [
+                    .prose ("""
+                    Three things about the machine you want to reach: its **address** (a hostname like \
+                    `server.example.com` or an IP like `192.168.1.10`), a **username** on it, and a way \
+                    to prove who you are — either a password or an SSH key.
 
-                The nickname is what you will see in the host list and in the terminal's title bar, so \
-                pick something you will recognise later.
-                """),
-            GuideSection (
-                heading: "Choose how you authenticate",
-                body: """
-                You can either enable **Use password**, or attach an SSH key.  Keys are strongly \
-                preferred: they are stored in the iOS keychain, they cannot be shoulder-surfed, and \
-                many servers refuse password logins outright.
+                    If you do not have a server yet, skip to the last step and try the Local Terminal \
+                    instead.
+                    """),
+                ]),
 
-                See the **SSH Keys** topic for how to create or import one.
-                """),
             GuideSection (
-                heading: "Connect",
-                body: """
-                Tap a host to connect.  The first time you reach a server the app shows you its host \
-                key fingerprint and asks whether to trust it — this is the moment that protects you \
-                against an impostor server, so compare it with a fingerprint you obtained elsewhere if \
-                you can.  Once accepted, the key is remembered under **Known Hosts**.
-                """),
+                heading: "Step 1 — Add the host",
+                blocks: [
+                    .steps ([
+                        "On the home screen, tap {desktopcomputer} **Hosts**.",
+                        "Tap **+** in the top right.",
+                        "Fill in **Alias** — the name you will see in your list. Something like *work laptop* or *prod web*.",
+                        "Fill in **Host** — the address of the machine.",
+                        "Fill in **Username** — who you log in as.",
+                        "Leave **Port** empty unless your server uses something other than 22.",
+                    ]),
+                    .tip ("The alias is purely for you. Pick what you will recognise in six months, not the hostname you already forgot."),
+                ]),
+
             GuideSection (
-                heading: "Try it without a server",
-                body: """
-                **Local Terminal** on the home screen gives you a shell running inside the app itself. \
-                It is a good way to explore the keyboard, snippets and the AI features before you have \
-                a server set up.
-                """),
+                heading: "Step 2 — Choose how you log in",
+                blocks: [
+                    .prose ("""
+                    In the same form, either turn on **Use password**, or attach an SSH key you have \
+                    created under {key} **Keys**.
+                    """),
+                    .prose ("""
+                    Keys are strongly preferred. They live in the iOS keychain, they cannot be \
+                    shoulder-surfed or guessed, and a lot of servers refuse password logins outright. \
+                    The **SSH Keys and Known Hosts** topic walks through making one.
+                    """),
+                    .prose ("Tap **Save** when the form is complete."),
+                ]),
+
+            GuideSection (
+                heading: "Step 3 — Connect",
+                blocks: [
+                    .steps ([
+                        "Tap your new host in the list.",
+                        "The first time, the app shows the server's **fingerprint** and asks whether to trust it. Accept it if it matches what you expect.",
+                        "Enter your password or key passphrase if prompted.",
+                    ]),
+                    .prose ("You should land at a shell prompt that looks something like this:"),
+                    .terminal ([
+                        "Last login: Mon Jul 19 09:14:02 2026 from 10.0.0.4",
+                        "$ whoami",
+                        "mike",
+                        "$ ",
+                    ]),
+                    .tip ("""
+                    That fingerprint prompt is the one moment protecting you from an impostor server. \
+                    If you can, check it against a fingerprint you obtained some other way. Once \
+                    accepted it is remembered under **Known Hosts** and you will not be asked again.
+                    """),
+                ]),
+
+            GuideSection (
+                heading: "Step 4 — Find your way around",
+                blocks: [
+                    .prose ("Once connected, the toolbar at the top right gives you:"),
+                    .bullets ([
+                        "{note.text} **Snippets** — paste commands you have saved.",
+                        "{folder} **Files** — an SFTP browser on this same connection.",
+                        "{arrow.left.arrow.right} **Port forwarding** — tunnel a port over this connection.",
+                        "{sparkles} **AI** — explain output, diagnose a failure, or get a command.",
+                        "{gearshape} **Appearance** — theme and font for this session.",
+                        "{keyboard} **Keyboard** — show or hide the on-screen keyboard.",
+                    ]),
+                ]),
+
+            GuideSection (
+                heading: "No server? Try the Local Terminal",
+                blocks: [
+                    .prose ("""
+                    {ipad.landscape} **Local Terminal** on the home screen gives you a real shell \
+                    running inside the app, with no server and no setup at all.
+                    """),
+                    .terminal ([
+                        "$ ls",
+                        "Documents    Downloads",
+                        "$ echo hello",
+                        "hello",
+                        "$ ",
+                    ]),
+                    .prose ("""
+                    It is the best place to get comfortable with the keyboard, snippets and the AI \
+                    features before you point them at a machine that matters.
+                    """),
+                ]),
         ]),
 
     GuideTopic (

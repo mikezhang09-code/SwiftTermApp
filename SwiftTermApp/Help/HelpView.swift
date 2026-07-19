@@ -55,12 +55,12 @@ struct GuideTopicView: View {
         ScrollView {
             VStack (alignment: .leading, spacing: 24) {
                 ForEach (topic.sections) { section in
-                    VStack (alignment: .leading, spacing: 8) {
+                    VStack (alignment: .leading, spacing: 12) {
                         Text (section.heading)
                             .font (.headline)
-                        Text (helpMarkdown (section.body))
-                            .font (.body)
-                            .fixedSize (horizontal: false, vertical: true)
+                        ForEach (section.blocks) { block in
+                            GuideBlockView (block: block)
+                        }
                     }
                 }
             }
@@ -69,6 +69,122 @@ struct GuideTopicView: View {
         }
         .navigationTitle (topic.title)
         .navigationBarTitleDisplayMode (.inline)
+    }
+}
+
+/// Builds a `Text` from a string that may contain `{symbolname}` tokens,
+/// substituting the live SF Symbol.  Using the real symbol means the icon in
+/// the guide is always the icon in the toolbar — a screenshot would drift the
+/// moment the UI changed, and would have to be redone per device and language.
+func helpTextWithSymbols (_ source: String) -> Text {
+    var result = Text ("")
+    var remainder = Substring (source)
+
+    while let open = remainder.firstIndex (of: "{"),
+          let close = remainder [open...].firstIndex (of: "}") {
+        let before = String (remainder [remainder.startIndex ..< open])
+        let name = String (remainder [remainder.index (after: open) ..< close])
+
+        if !before.isEmpty {
+            result = result + Text (helpMarkdown (before))
+        }
+        // Only substitute names that resolve; otherwise show the literal text
+        // so a typo is visible rather than silently swallowed.
+        if UIImage (systemName: name) != nil {
+            result = result + Text (Image (systemName: name)).foregroundColor (.accentColor)
+        } else {
+            result = result + Text ("{\(name)}")
+        }
+        remainder = remainder [remainder.index (after: close)...]
+    }
+    if !remainder.isEmpty {
+        result = result + Text (helpMarkdown (String (remainder)))
+    }
+    return result
+}
+
+struct GuideBlockView: View {
+    let block: GuideBlock
+
+    var body: some View {
+        switch block {
+        case .prose (let text):
+            helpTextWithSymbols (text)
+                .font (.body)
+                .fixedSize (horizontal: false, vertical: true)
+                .frame (maxWidth: .infinity, alignment: .leading)
+
+        case .steps (let items):
+            VStack (alignment: .leading, spacing: 12) {
+                ForEach (Array (items.enumerated ()), id: \.offset) { index, item in
+                    HStack (alignment: .top, spacing: 12) {
+                        Text ("\(index + 1)")
+                            .font (.footnote.weight (.semibold))
+                            .foregroundColor (.white)
+                            .frame (width: 22, height: 22)
+                            .background (Circle ().fill (Color.accentColor))
+                        helpTextWithSymbols (item)
+                            .font (.body)
+                            .fixedSize (horizontal: false, vertical: true)
+                            .frame (maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+            .padding (14)
+            .frame (maxWidth: .infinity, alignment: .leading)
+            .background (Color (.secondarySystemBackground))
+            .cornerRadius (10)
+
+        case .bullets (let items):
+            VStack (alignment: .leading, spacing: 12) {
+                ForEach (Array (items.enumerated ()), id: \.offset) { _, item in
+                    helpTextWithSymbols (item)
+                        .font (.body)
+                        .fixedSize (horizontal: false, vertical: true)
+                        .frame (maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding (14)
+            .frame (maxWidth: .infinity, alignment: .leading)
+            .background (Color (.secondarySystemBackground))
+            .cornerRadius (10)
+
+        case .terminal (let lines):
+            // A miniature terminal, so command examples read the way they will
+            // actually look on screen rather than as prose.
+            VStack (alignment: .leading, spacing: 2) {
+                ForEach (Array (lines.enumerated ()), id: \.offset) { _, line in
+                    if line.hasPrefix ("$ ") {
+                        (Text ("$ ").foregroundColor (.green)
+                         + Text (String (line.dropFirst (2))).foregroundColor (.white))
+                            .font (.system (.callout, design: .monospaced))
+                            .fixedSize (horizontal: false, vertical: true)
+                    } else {
+                        Text (line)
+                            .font (.system (.callout, design: .monospaced))
+                            .foregroundColor (Color (white: 0.75))
+                            .fixedSize (horizontal: false, vertical: true)
+                    }
+                }
+            }
+            .padding (12)
+            .frame (maxWidth: .infinity, alignment: .leading)
+            .background (Color.black)
+            .cornerRadius (10)
+
+        case .tip (let text):
+            HStack (alignment: .top, spacing: 10) {
+                Image (systemName: "lightbulb.fill")
+                    .foregroundColor (.orange)
+                helpTextWithSymbols (text)
+                    .font (.callout)
+                    .fixedSize (horizontal: false, vertical: true)
+            }
+            .padding (12)
+            .frame (maxWidth: .infinity, alignment: .leading)
+            .background (Color.orange.opacity (0.12))
+            .cornerRadius (10)
+        }
     }
 }
 
