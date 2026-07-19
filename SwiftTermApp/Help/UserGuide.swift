@@ -234,6 +234,10 @@ let userGuideTopics: [GuideTopic] = [
                 body: """
                 A snippet is a saved block of one or more commands.  Instead of retyping a long \
                 invocation on a phone keyboard, save it once and paste it whenever you need it.
+
+                To run several commands in sequence, put each on its own line in the Command box — \
+                pressing return there inserts a newline rather than saving.  A snippet of `ls` \
+                followed by `cd ..` runs both, in order, exactly as if you had typed them.
                 """),
             GuideSection (
                 heading: "Using them",

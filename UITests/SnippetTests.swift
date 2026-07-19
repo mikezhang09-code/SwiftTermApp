@@ -144,4 +144,42 @@ class SnippetTests: XCTestCase {
         XCTAssertTrue(app.buttons["snippets"].firstMatch.exists,
                       "Did not return to the terminal after choosing a snippet")
     }
+
+    /// A snippet holding two commands, one per line, must run both.  Line
+    /// endings have to reach the tty as carriage returns; sent verbatim the
+    /// lines run together ("ls" + "cd .." => "lscd ..").  The terminal buffer
+    /// is not readable from a UI test, so this drives the flow and leaves the
+    /// screenshot as the record.
+    func testMultiLineSnippetRunsBothCommands() throws {
+        let app = XCUIApplication(); app.launch()
+        openSnippets(app)
+
+        app.buttons["Add Snippet"].firstMatch.tap()
+        let f = app.textFields["name"].firstMatch
+        XCTAssertTrue(f.waitForExistence(timeout: 5))
+        f.tap(); f.typeText("ListThenUp")
+        let e = app.textViews.firstMatch
+        e.tap(); e.typeText("ls\ncd ..\n")
+        app.buttons["Save"].firstMatch.tap()
+        sleep(1)
+
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        let local = app.buttons["Local Terminal"].firstMatch
+        var t = 0
+        while !local.exists && t < 6 { app.swipeUp(); t += 1 }
+        XCTAssertTrue(local.waitForExistence(timeout: 8))
+        local.tap()
+        sleep(3)
+
+        app.buttons["snippets"].firstMatch.tap()
+        let row = app.staticTexts["ListThenUp"].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        sleep(3)
+
+        try? app.screenshot().pngRepresentation.write(
+            to: URL(fileURLWithPath: "/private/tmp/claude-501/-Users-hongyan-Documents-GitHub-SwiftTermApp/1b9646ef-6854-4786-aa48-aaf9207943e8/scratchpad/ml-final.png"))
+        XCTAssertTrue(app.buttons["snippets"].firstMatch.exists,
+                      "Did not return to the terminal after running a multi-line snippet")
+    }
 }

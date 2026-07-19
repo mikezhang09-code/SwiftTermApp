@@ -33,7 +33,7 @@ struct CommandPicker: View {
                         return
                     }
                     dismiss()
-                    terminal.send(txt: snippet.command)
+                    terminal.send (txt: CommandPicker.forTerminal (snippet.command))
                 } label: {
                     SnippetSummary(snippet: snippet)
                 }
@@ -50,6 +50,16 @@ struct CommandPicker: View {
         }
     }
     
+    /// A tty submits a line on carriage return, which is what the Return key
+    /// sends; a bare newline is not treated as Enter, so a multi-line snippet
+    /// sent verbatim runs together into one line ("ls" + "cd .." => "lscd ..").
+    /// Translate line endings so each line of a snippet is entered as typed.
+    static func forTerminal (_ command: String) -> String {
+        command
+            .replacingOccurrences (of: "\r\n", with: "\n")
+            .replacingOccurrences (of: "\n", with: "\r")
+    }
+
     var searchResults: [CUserSnippet] {
         if searchText.isEmpty {
             return snippets.wrappedValue.map { $0 }
