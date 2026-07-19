@@ -200,39 +200,64 @@ let userGuideTopics: [GuideTopic] = [
         sections: [
             GuideSection (
                 heading: "Several terminals at once",
-                body: """
-                Connecting to a host opens a terminal but does not close the others.  **Terminals** on \
-                the home screen lists everything currently running, with a live count next to it, and \
-                lets you jump back to any session or close it.
-                """),
+                blocks: [
+                    .prose ("""
+                    Connecting to a host does not close the others.  {terminal} **Terminals** on the \
+                    home screen lists everything running, with a live count beside it, and lets you \
+                    jump back to a session or close it.
+                    """),
+                    .prose ("""
+                    When nothing is connected it says *No active sessions*, and shows **Recent \
+                    Connections** so you can pick up where you left off.
+                    """),
+                ]),
+
+            GuideSection (
+                heading: "Surviving a dropped connection",
+                blocks: [
+                    .prose ("""
+                    Mobile links drop — you walk into a lift, or iOS suspends the app when you switch \
+                    away.  Without help, the shell dies and anything running in it dies too.
+                    """),
+                    .prose ("""
+                    Editing a host reveals a **Restoration** row with **none** and **tmux**.  Choose \
+                    **tmux** and the app attaches to a tmux session on the server, so your work \
+                    survives the drop and is waiting when you reconnect.
+                    """),
+                    .tip ("""
+                    This needs tmux installed on the server.  The **tmux** section of the Command \
+                    Reference covers driving it by hand.
+                    """),
+                ]),
+
             GuideSection (
                 heading: "Per-host appearance",
-                body: """
-                Each host can override the global colour theme.  Edit the host and use the \
-                **Appearance** section; leave it on *Default* to follow the theme you picked in \
-                Settings.
-                """),
-            GuideSection (
-                heading: "Environment variables and startup",
-                body: """
-                A host can carry environment variables that are sent when the session opens.  Use these \
-                for things like `TERM`, `LANG`, or a variable your login scripts expect.
-                """),
-            GuideSection (
-                heading: "Surviving disconnects",
-                body: """
-                Mobile connections drop.  If you set a host's reconnect type to **tmux**, the app will \
-                attach to a tmux session on the server, so your work survives a dropped link and \
-                resumes where it left off.
+                blocks: [
+                    .prose ("""
+                    A host can override the global theme from its **Appearance** section — useful as a \
+                    standing signal that you are on production.  Leave it on *Default* to follow \
+                    {gear} **Settings**.
+                    """),
+                ]),
 
-                Without tmux, a dropped connection ends the shell and anything running in it.
-                """),
+            GuideSection (
+                heading: "Environment variables",
+                blocks: [
+                    .prose ("""
+                    Under **Other Options**, a host can carry environment variables sent when the \
+                    session opens.  This is where to set `TERM` or `LANG` when a server needs them \
+                    spelled out.
+                    """),
+                ]),
+
             GuideSection (
                 heading: "History",
-                body: """
-                **History** records your past connections, so you can see when you last reached a given \
-                machine.
-                """),
+                blocks: [
+                    .prose ("""
+                    {clock} **History** records past connections, so you can see when you last reached \
+                    a machine.
+                    """),
+                ]),
         ]),
 
     GuideTopic (
@@ -241,40 +266,58 @@ let userGuideTopics: [GuideTopic] = [
         summary: "Creating, importing and trusting keys",
         sections: [
             GuideSection (
-                heading: "Creating a key",
-                body: """
-                Go to **Keys** and add a new one.  Ed25519 is the good default: it is short, fast and \
-                secure.  RSA is available for older servers that have not been updated.
+                heading: "Three ways to get a key",
+                blocks: [
+                    .prose ("Open {key} **Keys** from the home screen.  You can:"),
+                    .bullets ([
+                        "**Generate** one — pick **ed25519** or **RSA**.  ed25519 is the better default: short, fast and secure.  RSA is there for older servers, at 1024, 2048 or 4096 bits.",
+                        "**Create a Secure Enclave key** — an `ecdsa-sha2-nistp256` key whose private half is generated inside the device's Secure Enclave and can never be extracted, not even by the app.",
+                        "**Import** one you already use — paste it, or pick the file with the Files browser.  The private key is required; a passphrase is asked for if it needs one.",
+                    ]),
+                    .tip ("""
+                    The Secure Enclave option is the strongest choice available on the device.  The \
+                    trade-off is that the key cannot be backed up or copied to another machine — if \
+                    you lose the device, you enrol a new key.
+                    """),
+                ]),
 
-                You may protect the key with a passphrase.  The private key never leaves the device's \
-                keychain.
-                """),
             GuideSection (
-                heading: "Getting the key onto the server",
-                body: """
-                Copy the **public** key from the key's detail page and append it to \
-                `~/.ssh/authorized_keys` on the server.  From an existing session you can run:
+                heading: "Putting the key on the server",
+                blocks: [
+                    .prose ("""
+                    Copy the **public** key from its detail page and append it to `authorized_keys` \
+                    on the server.  From a session you already have:
+                    """),
+                    .terminal ([
+                        "$ mkdir -p ~/.ssh && chmod 700 ~/.ssh",
+                        "$ echo 'ssh-ed25519 AAAA...' >> ~/.ssh/authorized_keys",
+                        "$ chmod 600 ~/.ssh/authorized_keys",
+                    ]),
+                    .prose ("""
+                    Those permissions are not decoration: `sshd` silently ignores `~/.ssh` if it is \
+                    group- or world-writable, which produces a *Permission denied* that looks \
+                    inexplicable.
+                    """),
+                    .tip ("Never paste the *private* key anywhere.  Only the public half leaves the device."),
+                ]),
 
-                    mkdir -p ~/.ssh && chmod 700 ~/.ssh
-                    echo 'PASTE-PUBLIC-KEY-HERE' >> ~/.ssh/authorized_keys
-                    chmod 600 ~/.ssh/authorized_keys
-
-                Never paste the *private* key anywhere.
-                """),
-            GuideSection (
-                heading: "Importing an existing key",
-                body: """
-                You can import a key you already use elsewhere by pasting its contents or opening it \
-                from the Files app.  Encrypted private keys will ask for their passphrase.
-                """),
             GuideSection (
                 heading: "Known Hosts",
-                body: """
-                **Known Hosts** lists the server fingerprints you have accepted.  If a server's key \
-                changes you will get a warning on the next connection.  That usually means the server \
-                was rebuilt — but it can also mean someone is impersonating it, so verify before you \
-                delete the old entry and accept the new one.
-                """),
+                blocks: [
+                    .prose ("""
+                    {lock.desktopcomputer} **Known Hosts** lists the server fingerprints you have \
+                    accepted, each with its endpoint, key type and key.  They are checked on every \
+                    connection so a machine cannot be swapped behind your back.
+                    """),
+                    .prose ("""
+                    If a fingerprint changes you get a warning.  Usually the server was rebuilt or \
+                    reinstalled — but it can also mean something is intercepting the connection.
+                    """),
+                    .tip ("""
+                    Verify by some other route before deleting the old entry.  Removing the warning \
+                    is easy; noticing that you should not have is the hard part.
+                    """),
+                ]),
         ]),
 
     GuideTopic (
@@ -445,30 +488,71 @@ let userGuideTopics: [GuideTopic] = [
         sections: [
             GuideSection (
                 heading: "What they are",
-                body: """
-                A snippet is a saved block of one or more commands.  Instead of retyping a long \
-                invocation on a phone keyboard, save it once and paste it whenever you need it.
+                blocks: [
+                    .prose ("""
+                    A snippet is a saved block of one or more commands.  Rather than retype a long \
+                    invocation on a phone keyboard, save it once and paste it whenever you need it.
+                    """),
+                    .prose ("""
+                    Unlike shell history, snippets are yours rather than a server's: they follow you \
+                    to every host and survive rebuilds.
+                    """),
+                ]),
 
-                To run several commands in sequence, put each on its own line in the Command box — \
-                pressing return there inserts a newline rather than saving.  A snippet of `ls` \
-                followed by `cd ..` runs both, in order, exactly as if you had typed them.
-                """),
             GuideSection (
-                heading: "Using them",
-                body: """
-                The **note** button in a terminal's toolbar opens the snippet picker; choosing a \
-                snippet types it into the current session.  It is available in SSH sessions and in \
-                the Local Terminal.  Manage the list from **Snippets** on the home screen, where you \
-                can add, edit and swipe to delete.
-                """),
+                heading: "Creating one",
+                blocks: [
+                    .steps ([
+                        "Tap {note.text} **Snippets** on the home screen.",
+                        "Tap **Add Snippet**.",
+                        "Give it a **Title** — this is what you will pick from the list.",
+                        "Type the commands in **Command**.",
+                        "Tap **Save**.  It stays disabled until both fields have something in them.",
+                    ]),
+                ]),
+
             GuideSection (
-                heading: "A caution",
-                body: """
-                Snippets are pasted exactly as saved.  A snippet ending in a newline runs the moment \
-                you pick it; one without a newline lands at the prompt so you can read and edit it \
-                first.  Leaving the newline off is the safer habit, and essential for anything \
-                destructive.
-                """),
+                heading: "Running several commands",
+                blocks: [
+                    .prose ("""
+                    Put each command on its own line in the **Command** box — pressing return there \
+                    inserts a newline rather than saving.  A snippet holding:
+                    """),
+                    .terminal ([
+                        "ls",
+                        "cd ..",
+                    ]),
+                    .prose ("runs both, in order, exactly as if you had typed them:"),
+                    .terminal ([
+                        "$ ls",
+                        "Documents    Downloads",
+                        "$ cd ..",
+                        "$ ",
+                    ]),
+                ]),
+
+            GuideSection (
+                heading: "Using one",
+                blocks: [
+                    .prose ("""
+                    In a session — SSH or the Local Terminal — tap {note.text} in the toolbar and \
+                    choose your snippet.  The picker has a search field, which earns its keep once \
+                    you have more than a handful.
+                    """),
+                ]),
+
+            GuideSection (
+                heading: "The trailing newline decides whether it runs",
+                blocks: [
+                    .bullets ([
+                        "**Ending with a newline** — every line runs immediately, including the last.",
+                        "**No trailing newline** — the earlier lines run and the last one waits at the prompt, where you can read or edit it before pressing return.",
+                    ]),
+                    .tip ("""
+                    For anything destructive, leave the newline off on purpose.  That pause is your \
+                    last chance to notice you are on the wrong server.
+                    """),
+                ]),
         ]),
 
     GuideTopic (
@@ -477,33 +561,60 @@ let userGuideTopics: [GuideTopic] = [
         summary: "Tunnelling ports over your SSH connection",
         sections: [
             GuideSection (
-                heading: "Local forwarding",
-                body: """
-                A local forward makes a port on the server reachable from this device.  The classic use \
-                is reaching a database or an admin web page that only listens on the server's loopback \
-                address: forward local `8080` to `127.0.0.1:80` on the server and open \
-                `http://localhost:8080` on the iPad.
-                """),
+                heading: "What forwarding is for",
+                blocks: [
+                    .prose ("""
+                    A forward carries a network port through your SSH connection, letting you reach \
+                    something that is not exposed to the internet — a database bound to the server's \
+                    loopback, or an admin page behind a firewall.
+                    """),
+                    .prose ("""
+                    Open {arrow.left.arrow.right} in a connected terminal's toolbar.  Forwards live \
+                    as long as the session does.
+                    """),
+                ]),
+
             GuideSection (
-                heading: "Remote forwarding",
-                body: """
-                A remote forward is the mirror image: it exposes a port from this device on the server. \
-                This is less common from a mobile client but useful for letting a server reach back to \
-                something you are running locally.
-                """),
+                heading: "The three kinds",
+                blocks: [
+                    .prose ("Tap **+** to add one, and pick a **Type**:"),
+                    .bullets ([
+                        "**Local (-L)** — the common one.  Tunnels a port on *this device* to something the server can reach.",
+                        "**Dynamic SOCKS (-D)** — turns the connection into a SOCKS5 proxy on the device, so anything the server can reach becomes browsable.",
+                        "**Remote (-R)** — the mirror image: opens a port on the *server* that forwards back to something this device can reach.",
+                    ]),
+                    .tip ("""
+                    The form relabels its fields as you switch type — *Listen on this device port* \
+                    becomes *Server listens on port* for Remote — so read the headings rather than \
+                    assuming which end is which.
+                    """),
+                ]),
+
             GuideSection (
-                heading: "SOCKS proxy",
-                body: """
-                A dynamic forward turns the connection into a SOCKS proxy, letting the built-in browser \
-                reach anything the server can reach.  It is the quickest way to view an internal site \
-                without a full VPN.
-                """),
+                heading: "Example: reaching a private database",
+                blocks: [
+                    .prose ("""
+                    Say Postgres listens on `127.0.0.1:5432` on the server and refuses outside \
+                    connections.  Add a **Local (-L)** forward listening on device port `5432`, \
+                    forwarding to `127.0.0.1:5432` as seen from the server.
+                    """),
+                    .prose ("""
+                    Anything on the device pointed at `localhost:5432` now lands on the server's \
+                    database, with the traffic encrypted inside your SSH connection.
+                    """),
+                ]),
+
             GuideSection (
-                heading: "Managing forwards",
-                body: """
-                The **arrows** button in the terminal toolbar lists the forwards for that session and \
-                lets you add or remove them while connected.  Forwards live as long as the session does.
-                """),
+                heading: "Browsing through the tunnel",
+                blocks: [
+                    .prose ("""
+                    A **Dynamic SOCKS** forward comes with a built-in **Proxied Browser**, which shows \
+                    {lock.shield} *via SOCKS 127.0.0.1:port* while it is routing through the server.
+                    """),
+                    .prose ("""
+                    It is the quickest way to open an internal site without setting up a VPN.
+                    """),
+                ]),
         ]),
 
     GuideTopic (
@@ -513,45 +624,66 @@ let userGuideTopics: [GuideTopic] = [
         sections: [
             GuideSection (
                 heading: "Setting it up",
-                body: """
-                Open **AI** on the home screen, add a provider and paste your API key, then make it the \
-                active provider.  The key is stored on the device.  Nothing is sent anywhere until you \
-                explicitly invoke one of the three actions below.
-                """),
-            GuideSection (
-                heading: "Explain",
-                body: """
-                The **sparkles** menu in a terminal offers *Explain Output*.  It sends the recent \
-                scrollback and explains what you are looking at.  If you have text selected it becomes \
-                *Explain Selection* and only that text is sent — useful for asking about one confusing \
-                line rather than the whole screen.
-                """),
-            GuideSection (
-                heading: "Diagnose",
-                body: """
-                *Diagnose Failure* is for when something just broke.  It sends a larger slice of \
-                scrollback than Explain, because the cause of an error is usually several lines above \
-                the error itself, and asks specifically why the failure happened.
-                """),
-            GuideSection (
-                heading: "Get a Command",
-                body: """
-                Describe what you want in plain language and get back a single shell command, tagged \
-                with a risk badge.  The command is never executed for you — it is placed where you can \
-                read it, edit it and decide.  **Read the command before you run it**, especially \
-                anything marked risky.
-                """),
-            GuideSection (
-                heading: "What gets sent, and language",
-                body: """
-                Only the scrollback for the action you invoked leaves the device, and only to the \
-                provider you configured.  Terminal contents often include hostnames, paths and \
-                occasionally secrets, so treat these actions the way you would treat pasting into any \
-                third-party service.
+                blocks: [
+                    .steps ([
+                        "Tap {sparkles} **AI** on the home screen.",
+                        "Add a provider and paste your API key.  It is stored in the keychain, never in settings files.",
+                        "Optionally tap **Test** to confirm the key and model work.",
+                        "The provider with the checkmark is the one the AI features use.",
+                    ]),
+                    .prose ("""
+                    Each provider carries a **Kind**, an **Endpoint** you can repoint at a compatible \
+                    proxy or gateway, and a **Model**.
+                    """),
+                ]),
 
-                You can control how many lines Explain and Diagnose send, and which language answers \
-                come back in, from the **AI** screen.
-                """),
+            GuideSection (
+                heading: "The three actions",
+                blocks: [
+                    .prose ("The {sparkles} menu in a terminal offers:"),
+                    .bullets ([
+                        "{text.magnifyingglass} **Explain Output** — sends recent scrollback and explains what you are looking at.  Select text first and it becomes *Explain Selection*, sending only that.",
+                        "{stethoscope} **Diagnose Failure** — for when something just broke.  Sends more scrollback than Explain, because the cause usually sits several lines above the error.",
+                        "{wand.and.stars} **Get a Command** — describe what you want in plain language and get one shell command back.",
+                    ]),
+                ]),
+
+            GuideSection (
+                heading: "Command suggestions carry a risk badge",
+                blocks: [
+                    .prose ("A suggested command is labelled with how dangerous it is:"),
+                    .bullets ([
+                        "**safe** — reads state without changing anything.",
+                        "**caution** — changes something.",
+                        "**destructive** — can lose data.  Inserting one raises a confirmation you have to accept deliberately.",
+                    ]),
+                    .prose ("""
+                    Nothing is ever executed for you.  The command is placed at the prompt for you to \
+                    read, edit and decide on.
+                    """),
+                    .tip ("""
+                    Treat the badge as a prompt to think, not a guarantee.  A command marked *safe* \
+                    is still a command someone else wrote, aimed at your server.
+                    """),
+                ]),
+
+            GuideSection (
+                heading: "What leaves the device",
+                blocks: [
+                    .prose ("""
+                    Only the scrollback for the action you invoked, and only to the provider you \
+                    configured.  Nothing is sent in the background.
+                    """),
+                    .prose ("""
+                    Terminal output routinely contains hostnames, paths, usernames and sometimes \
+                    secrets, so treat these actions the way you would treat pasting into any \
+                    third-party service.
+                    """),
+                    .prose ("""
+                    Under **Answers** you can set the **Answer language**, and how many lines of \
+                    context **Explain** and **Diagnose** each send.
+                    """),
+                ]),
         ]),
 
     GuideTopic (
@@ -561,30 +693,52 @@ let userGuideTopics: [GuideTopic] = [
         sections: [
             GuideSection (
                 heading: "Appearance",
-                body: """
-                Pick a colour theme and a monospaced font.  Setting the font size to the system default \
-                lets it follow Dynamic Type; any other value pins it.  Individual hosts may override the \
-                theme.
-                """),
+                blocks: [
+                    .prose ("""
+                    {gear} **Settings** holds the defaults every session starts from: a colour \
+                    **Theme**, a monospaced **Font**, and a **Font Size**.
+                    """),
+                    .tip ("""
+                    Leaving the size on the system default lets the terminal follow Dynamic Type, so \
+                    it tracks the text size you use everywhere else.  Any other value pins it.
+                    """),
+                    .prose ("Individual hosts can override the theme; pinching in a terminal overrides the size for that session."),
+                ]),
+
             GuideSection (
                 heading: "Keep Display On",
-                body: """
-                Prevents the screen from sleeping while you are connected.  Handy when you are watching \
-                a long build, at the cost of battery.
-                """),
+                blocks: [
+                    .prose ("""
+                    Stops the screen sleeping while you are connected — worth it when you are watching \
+                    a long build, at the cost of battery.
+                    """),
+                ]),
+
             GuideSection (
                 heading: "Beep",
-                body: """
-                Chooses what happens when the terminal receives a bell character: nothing, an audible \
-                beep, or a vibration.
-                """),
+                blocks: [
+                    .prose ("Chooses what happens when the terminal receives a bell character:"),
+                    .bullets ([
+                        "**Silent** — nothing.",
+                        "**Beep** — an audible tone.",
+                        "**Vibrate** — a haptic tap, the default.",
+                    ]),
+                ]),
+
             GuideSection (
                 heading: "Track Location",
-                body: """
-                An opt-in setting that lets the app keep running in the background so sessions stay \
-                alive longer.  It records locations, which you can review under History.  Leave it off \
-                unless you specifically need it.
-                """),
+                blocks: [
+                    .prose ("""
+                    Opt-in, and off by default.  It lets the app keep running in the background so \
+                    sessions stay alive longer, at the cost of recording locations, which you can \
+                    review under {clock} **History**.
+                    """),
+                    .tip ("""
+                    Leave this off unless you specifically need it.  For keeping work alive across \
+                    disconnects, a host set to **tmux** restoration is both more reliable and less \
+                    invasive.
+                    """),
+                ]),
         ]),
 
     GuideTopic (
@@ -594,43 +748,85 @@ let userGuideTopics: [GuideTopic] = [
         sections: [
             GuideSection (
                 heading: "Connection refused",
-                body: """
-                Nothing is listening on that port.  Check that the SSH server is running \
-                (`systemctl status sshd`) and that you have the right port — many hosts move SSH off 22.
-                """),
+                blocks: [
+                    .prose ("""
+                    Something answered and said no — nothing is listening on that port.  The machine \
+                    is up and reachable, so this is about the service, not the network.
+                    """),
+                    .terminal ([
+                        "$ systemctl status sshd",
+                        "  Active: active (running)",
+                        "$ ss -tulpn | grep :22",
+                    ]),
+                    .prose ("""
+                    Also check the port itself: plenty of servers move SSH off 22, and the app's \
+                    **Port** field lives under **Other Options** when editing a host.
+                    """),
+                ]),
+
             GuideSection (
                 heading: "Connection times out",
-                body: """
-                The packets are not arriving at all: a firewall, security group, or simply the wrong \
-                address.  Confirm the machine is reachable from the network you are on right now — a \
-                host that works on your home Wi-Fi may be unreachable on cellular.
-                """),
+                blocks: [
+                    .prose ("""
+                    Nothing answered at all — a firewall, a cloud security group, or simply the wrong \
+                    address.  Confirm the machine is reachable from the network you are on *now*: a \
+                    host that works on home Wi-Fi may be unreachable on cellular.
+                    """),
+                ]),
+
             GuideSection (
                 heading: "Permission denied (publickey)",
-                body: """
-                The server did not accept your key.  Check that the public key really is in \
-                `~/.ssh/authorized_keys`, that you attached the matching key to this host, and that the \
-                permissions are right — `sshd` silently ignores `~/.ssh` if it is group- or \
-                world-writable. `chmod 700 ~/.ssh; chmod 600 ~/.ssh/authorized_keys`.
-                """),
+                blocks: [
+                    .prose ("The server did not accept your key.  In order of likelihood:"),
+                    .steps ([
+                        "The public key is not in `~/.ssh/authorized_keys` on the server.",
+                        "A different key is attached to this host in the app.",
+                        "The permissions are wrong — `sshd` ignores `~/.ssh` if it is group- or world-writable.",
+                    ]),
+                    .terminal ([
+                        "$ chmod 700 ~/.ssh",
+                        "$ chmod 600 ~/.ssh/authorized_keys",
+                    ]),
+                ]),
+
             GuideSection (
                 heading: "Host key changed",
-                body: """
-                Either the server was rebuilt or reinstalled, or something is intercepting the \
-                connection.  Verify out-of-band before removing the old entry from **Known Hosts**.
-                """),
+                blocks: [
+                    .prose ("""
+                    Either the server was rebuilt, or something is intercepting the connection. \
+                    Verify by another route before removing the old entry from \
+                    {lock.desktopcomputer} **Known Hosts**.
+                    """),
+                ]),
+
             GuideSection (
-                heading: "Garbled characters or broken box drawing",
-                body: """
-                Usually a locale or TERM mismatch.  Make sure the server has a UTF-8 locale \
-                (`locale` should show `UTF-8`) and that `TERM` is set to `xterm-256color`.  You can set \
-                `TERM` per host in its environment variables.
-                """),
+                heading: "Garbled characters or broken boxes",
+                blocks: [
+                    .prose ("Usually a locale or `TERM` mismatch.  Check both:"),
+                    .terminal ([
+                        "$ locale",
+                        "LANG=en_US.UTF-8",
+                        "$ echo $TERM",
+                        "xterm-256color",
+                    ]),
+                    .prose ("""
+                    If they are wrong, set them per host under **Other Options** → **Environment \
+                    Variables**.
+                    """),
+                ]),
+
             GuideSection (
                 heading: "The session drops when I switch apps",
-                body: """
-                iOS suspends backgrounded apps, which closes the connection.  Use a host configured for \
-                **tmux** reconnect so your work survives, or enable Keep Display On for short waits.
-                """),
+                blocks: [
+                    .prose ("""
+                    iOS suspends backgrounded apps, which closes the connection.  This is the \
+                    platform working as designed, not a fault.
+                    """),
+                    .prose ("""
+                    Set the host's **Restoration** to **tmux** so your work survives and resumes on \
+                    reconnect.  For short waits, **Keep Display On** in {gear} **Settings** avoids \
+                    the sleep that triggers it.
+                    """),
+                ]),
         ]),
 ]
