@@ -91,8 +91,8 @@ public class Channel: Equatable {
         var eof: Bool = true
         let pair = await sessionActor.ping(channel: self, eofDetected: &eof)
         
-        if let channelData = pair {
-            await readCallback (self, channelData.0, channelData.1, eof)
+        if pair != nil || eof {
+            await readCallback (self, pair?.0, pair?.1, eof)
         }
         return !eof
     }

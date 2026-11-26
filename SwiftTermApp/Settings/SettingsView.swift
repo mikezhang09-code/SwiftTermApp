@@ -32,7 +32,7 @@ class Settings: ObservableObject {
             } else {
                 locationTrackerStop()
             }
-            defaults?.set (keepOn, forKey: "locationTrack")
+            defaults?.set (locationTrack, forKey: "locationTrack")
         }
     }
     
@@ -83,6 +83,7 @@ class Settings: ObservableObject {
     
     init () {
         keepOn = defaults?.bool(forKey: "keepOn") ?? true
+        locationTrack = defaults?.bool(forKey: "locationTrack") ?? false
         beepConfig = BeepKind (rawValue: defaults?.string(forKey: "beepConfig") ?? "vibrate") ?? .vibrate
         themeName = defaults?.string (forKey: "theme") ?? "Pro"
         fontName = defaults?.string (forKey: "fontName") ?? "SF Mono"

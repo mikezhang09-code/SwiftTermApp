@@ -92,7 +92,7 @@ private func pumpLocalToChannel (_ nw: NWConnection, _ channelBox: @escaping () 
 /// Owns one accepted local NWConnection and its paired direct-tcpip channel, pumping
 /// bytes both ways.  For dynamic forwards it first negotiates SOCKS5 to learn the
 /// destination; for local forwards the destination is fixed.
-private final class TunnelConnection {
+private final class TunnelConnection: @unchecked Sendable {
     private let nw: NWConnection
     private weak var session: Session?
     private let fixedHost: String?
@@ -138,14 +138,23 @@ private final class TunnelConnection {
         guard let session else { close (); return }
         let ch = await session.tunnelTcp (host: host, port: Int32 (port),
                                           originatingHost: "127.0.0.1", originatingPort: Int32 (localPort)) { [weak self] _, out, _, eof in
+            guard let self else { return }
             if let out, !out.isEmpty {
-                self?.nw.send (content: out, completion: .contentProcessed { _ in })
-            }
-            if eof {
-                self?.close ()
+                // Flush the payload (and TCP FIN if EOF arrived together) before tearing down nw,
+                // otherwise an immediate nw.cancel() drops the tail of short HTTP responses.
+                self.nw.send (content: out, isComplete: eof, completion: .contentProcessed { [weak self] _ in
+                    if eof {
+                        self?.close ()
+                    }
+                })
+            } else if eof {
+                self.nw.send (content: nil, contentContext: .defaultMessage, isComplete: true, completion: .contentProcessed { [weak self] _ in
+                    self?.close ()
+                })
             }
         }
         guard let ch else {
+            print ("[portfwd] tunnelTcp failed for \(host):\(port)")
             close ()
             return
         }
@@ -310,10 +319,15 @@ private final class ReverseTunnelConnection {
     /// Called by the accept loop with each chunk the server forwards
     func deliverFromChannel (_ data: Data?, eof: Bool) {
         if let data, !data.isEmpty {
-            nw.send (content: data, completion: .contentProcessed { _ in })
-        }
-        if eof {
-            close ()
+            nw.send (content: data, isComplete: eof, completion: .contentProcessed { [weak self] _ in
+                if eof {
+                    self?.close ()
+                }
+            })
+        } else if eof {
+            nw.send (content: nil, contentContext: .defaultMessage, isComplete: true, completion: .contentProcessed { [weak self] _ in
+                self?.close ()
+            })
         }
     }
 
@@ -458,10 +472,10 @@ final class PortForward: ObservableObject, Identifiable {
 
     let id: UUID
     let hostId: UUID
-    let kind: PortForwardKind
-    let localPort: Int
-    let remoteHost: String
-    let remotePort: Int
+    @Published private(set) var kind: PortForwardKind
+    @Published private(set) var localPort: Int
+    @Published private(set) var remoteHost: String
+    @Published private(set) var remotePort: Int
 
     weak var session: Session?
     private var listener: NWListener?
@@ -504,6 +518,25 @@ final class PortForward: ObservableObject, Identifiable {
 
     var def: PortForwardDef {
         PortForwardDef (id: id, hostId: hostId, kind: kind, localPort: localPort, remoteHost: remoteHost, remotePort: remotePort)
+    }
+
+    /// Replaces the forward's configuration, stopping any active listener first if
+    /// the effective routing changed.
+    func update (with def: PortForwardDef) {
+        let sameDynamic = kind == .dynamic && def.kind == .dynamic && localPort == def.localPort
+        guard !sameDynamic, self.def != def else { return }
+
+        if active || listener != nil || remoteAcceptRunning {
+            stop ()
+        } else {
+            DispatchQueue.main.async {
+                self.status = ""
+            }
+        }
+        kind = def.kind
+        localPort = def.localPort
+        remoteHost = def.remoteHost
+        remotePort = def.remotePort
     }
 
     /// A one-line description of what this forward routes, for the UI.
@@ -720,6 +753,13 @@ final class PortForwardStore: ObservableObject {
         save ()
     }
 
+    func update (_ forward: PortForward, with def: PortForwardDef, session: Session?) {
+        forward.session = session
+        forward.update (with: def)
+        objectWillChange.send ()
+        save ()
+    }
+
     func remove (_ forward: PortForward) {
         forward.stop ()
         forwards.removeAll { $0.id == forward.id }
@@ -758,11 +798,9 @@ struct PortForwardsView: View {
 
     @Environment(\.dismiss) var dismiss
     @ObservedObject var store = PortForwardStore.shared
+    @ObservedObject private var appSettings = settings
     @State var showingAdd = false
-    @State var newKind: PortForwardKind = .local
-    @State var newLocalPort = ""
-    @State var newRemoteHost = "localhost"
-    @State var newRemotePort = ""
+    @State var editingForward: PortForward? = nil
 
     var session: Session? {
         (terminalGetter () as? SshTerminalView)?.session
@@ -775,18 +813,25 @@ struct PortForwardsView: View {
     var body: some View {
         NavigationView {
             List {
-                Section (footer: Text ("Local (-L) tunnels a device port to a target reached from the server. Dynamic (-D) is a SOCKS5 proxy on the device. Remote (-R) opens a port on the server that is forwarded back to a target this device can reach.")) {
+                Section (footer: Text ("Local (-L) tunnels a device port to a target reached from the server. Dynamic (-D) is a SOCKS5 proxy on the device. Remote (-R) opens a port on the server that is forwarded back to a target this device can reach. Tap a forward to edit it.")) {
                     if hostForwards.isEmpty {
                         Text ("No port forwards yet")
                             .foregroundColor (.secondary)
                     }
                     ForEach (hostForwards) { forward in
-                        PortForwardRow (forward: forward)
+                        PortForwardRow (forward: forward,
+                                        onEdit: { editingForward = forward },
+                                        onDelete: { store.remove (forward) })
                     }
                     .onDelete { indexSet in
                         for index in indexSet {
                             store.remove (hostForwards [index])
                         }
+                    }
+                }
+                if hostForwards.contains (where: { $0.kind == .local }) {
+                    Section (footer: Text ("Uses background location updates so SSH sessions and local forwards stay alive when you switch to Chrome or Safari.")) {
+                        Toggle ("Keep Alive in Background", isOn: $appSettings.locationTrack)
                     }
                 }
             }
@@ -806,99 +851,159 @@ struct PortForwardsView: View {
                 store.bind (hostId: host.id, session: session)
             }
             .sheet (isPresented: $showingAdd) {
-                addSheet
+                PortForwardEditorView (forward: nil, hostId: host.id) { def in
+                    store.add (def: def, session: session)
+                }
+            }
+            .sheet (item: $editingForward) { forward in
+                PortForwardEditorView (forward: forward, hostId: host.id) { def in
+                    store.update (forward, with: def, session: session)
+                }
             }
         }
         .navigationViewStyle (.stack)
     }
+}
 
-    var addSheet: some View {
+/// Shared form sheet for creating a new port forward or editing an existing one.
+private struct PortForwardEditorView: View {
+    let forward: PortForward?
+    let hostId: UUID
+    let onSave: (PortForwardDef) -> ()
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var kind: PortForwardKind
+    @State private var localPort: String
+    @State private var remoteHost: String
+    @State private var remotePort: String
+
+    init (forward: PortForward?, hostId: UUID, onSave: @escaping (PortForwardDef) -> ()) {
+        self.forward = forward
+        self.hostId = hostId
+        self.onSave = onSave
+        _kind = State (initialValue: forward?.kind ?? .local)
+        _localPort = State (initialValue: forward.map { String ($0.localPort) } ?? "")
+        let initialHost = forward?.remoteHost ?? ""
+        _remoteHost = State (initialValue: initialHost.isEmpty ? "localhost" : initialHost)
+        let initialRemotePort = forward?.remotePort ?? 0
+        _remotePort = State (initialValue: initialRemotePort > 0 ? String (initialRemotePort) : "")
+    }
+
+    var body: some View {
         NavigationView {
             Form {
                 Section {
-                    Picker ("Type", selection: $newKind) {
+                    Picker ("Type", selection: $kind) {
                         Text ("Local (-L)").tag (PortForwardKind.local)
                         Text ("Dynamic SOCKS (-D)").tag (PortForwardKind.dynamic)
                         Text ("Remote (-R)").tag (PortForwardKind.remote)
                     }
                 }
-                Section (header: Text (newKind == .remote ? "Server listens on port" : "Listen on this device port")) {
-                    TextField (newKind == .remote ? "Remote port (e.g. 8080)" : "Local port (e.g. 8080)", text: $newLocalPort)
+                Section (header: Text (kind == .remote ? "Server listens on port" : "Listen on this device port")) {
+                    TextField (kind == .remote ? "Remote port (e.g. 8080)" : "Local port (e.g. 8080)", text: $localPort)
                         .keyboardType (.numberPad)
                 }
-                if newKind != .dynamic {
-                    Section (header: Text (newKind == .remote ? "Forward to (reachable from this device)" : "Forward to (as seen from the server)")) {
-                        TextField ("Host (e.g. localhost)", text: $newRemoteHost)
+                if kind != .dynamic {
+                    Section (header: Text (kind == .remote ? "Forward to (reachable from this device)" : "Forward to (as seen from the server)")) {
+                        TextField ("Host (e.g. localhost)", text: $remoteHost)
                             .autocapitalization (.none)
                             .disableAutocorrection (true)
-                        TextField ("Port (e.g. 80)", text: $newRemotePort)
+                        TextField ("Port (e.g. 80)", text: $remotePort)
                             .keyboardType (.numberPad)
                     }
                 }
+                if let forward, forward.active {
+                    Section (footer: Text ("Saving changes will stop this active forward so it can be restarted with the new settings.")) {
+                        EmptyView ()
+                    }
+                }
             }
-            .navigationTitle ("New Forward")
+            .navigationTitle (forward == nil ? "New Forward" : "Edit Forward")
             .navigationBarTitleDisplayMode (.inline)
             .toolbar {
                 ToolbarItem (placement: .navigationBarLeading) {
-                    Button ("Cancel") { showingAdd = false }
+                    Button ("Cancel") { dismiss () }
                 }
                 ToolbarItem (placement: .navigationBarTrailing) {
-                    Button ("Add") { addForward () }
-                        .disabled (!canAdd)
+                    Button (forward == nil ? "Add" : "Save") { saveForward () }
+                        .disabled (!canSave)
                 }
             }
         }
+        .navigationViewStyle (.stack)
     }
 
-    var canAdd: Bool {
-        guard let local = Int (newLocalPort), local > 0, local < 65536 else { return false }
-        if newKind == .dynamic { return true }
-        guard let remote = Int (newRemotePort), remote > 0, remote < 65536,
-              !newRemoteHost.trimmingCharacters (in: .whitespaces).isEmpty else {
+    private var canSave: Bool {
+        guard let local = Int (localPort), local > 0, local < 65536 else { return false }
+        if kind == .dynamic { return true }
+        guard let remote = Int (remotePort), remote > 0, remote < 65536,
+              !remoteHost.trimmingCharacters (in: .whitespaces).isEmpty else {
             return false
         }
         return true
     }
 
-    func addForward () {
-        guard let local = Int (newLocalPort) else { return }
-        let remote = Int (newRemotePort) ?? 0
-        let def = PortForwardDef (hostId: host.id, kind: newKind, localPort: local,
-                                  remoteHost: newRemoteHost.trimmingCharacters (in: .whitespaces), remotePort: remote)
-        store.add (def: def, session: session)
-        newLocalPort = ""
-        newRemoteHost = "localhost"
-        newRemotePort = ""
-        newKind = .local
-        showingAdd = false
+    private func saveForward () {
+        guard let local = Int (localPort) else { return }
+        let trimmedHost = kind == .dynamic ? "" : remoteHost.trimmingCharacters (in: .whitespaces)
+        let remote = kind == .dynamic ? 0 : (Int (remotePort) ?? 0)
+        let def = PortForwardDef (id: forward?.id ?? UUID (),
+                                  hostId: hostId,
+                                  kind: kind,
+                                  localPort: local,
+                                  remoteHost: trimmedHost,
+                                  remotePort: remote)
+        onSave (def)
+        dismiss ()
     }
 }
 
 struct PortForwardRow: View {
     @ObservedObject var forward: PortForward
+    let onEdit: () -> ()
+    let onDelete: () -> ()
     @State private var testResult: String = ""
     @State private var showTestResult = false
     @State private var showBrowser = false
 
     var body: some View {
         HStack {
-            VStack (alignment: .leading, spacing: 2) {
-                Text (forward.kind.short)
-                    .font (.caption2)
-                    .foregroundColor (.secondary)
-                Text (forward.routeDescription)
-                    .font (.system (.body, design: .monospaced))
-                    .lineLimit (1)
-                    .minimumScaleFactor (0.7)
-                if !forward.status.isEmpty {
-                    Text (forward.active && forward.openConnections > 0
-                          ? "\(forward.status) · \(forward.openConnections) open"
-                          : forward.status)
-                        .font (.caption)
-                        .foregroundColor (forward.active ? .green : .secondary)
+            Button (action: onEdit) {
+                HStack {
+                    VStack (alignment: .leading, spacing: 2) {
+                        Text (forward.kind.short)
+                            .font (.caption2)
+                            .foregroundColor (.secondary)
+                        Text (forward.routeDescription)
+                            .font (.system (.body, design: .monospaced))
+                            .lineLimit (1)
+                            .minimumScaleFactor (0.7)
+                        if !forward.status.isEmpty {
+                            Text (forward.active && forward.openConnections > 0
+                                  ? "\(forward.status) · \(forward.openConnections) open"
+                                  : forward.status)
+                                .font (.caption)
+                                .foregroundColor (forward.active ? .green : .secondary)
+                        }
+                    }
+                    Spacer ()
                 }
+                .contentShape (Rectangle ())
             }
-            Spacer ()
+            .buttonStyle (.plain)
+            // For a running local forward: built-in browser at http://127.0.0.1:<localPort>,
+            // plus external Chrome / Safari launcher.
+            if forward.kind == .local && forward.active {
+                if #available(iOS 17.0, *) {
+                    Button (action: { showBrowser = true }) {
+                        Image (systemName: "safari")
+                    }
+                    .buttonStyle (.bordered)
+                    .padding (.trailing, 4)
+                    .accessibilityLabel ("Open in Built-in Browser")
+                }
+                localOpenControl
+            }
             // For a running SOCKS proxy: a built-in browser that routes through it (the
             // practical way to use ssh -D on iOS), plus a one-tap end-to-end test.
             if forward.kind == .dynamic && forward.active {
@@ -931,6 +1036,20 @@ struct PortForwardRow: View {
                 }))
             .labelsHidden ()
         }
+        .swipeActions (edge: .leading, allowsFullSwipe: true) {
+            Button (action: onEdit) {
+                Label ("Edit", systemImage: "pencil")
+            }
+            .tint (.accentColor)
+        }
+        .contextMenu {
+            Button (action: onEdit) {
+                Label ("Edit", systemImage: "pencil")
+            }
+            Button (role: .destructive, action: onDelete) {
+                Label ("Delete", systemImage: "trash")
+            }
+        }
         .alert ("Proxy Test", isPresented: $showTestResult) {
             Button ("OK") { }
         } message: {
@@ -940,7 +1059,72 @@ struct PortForwardRow: View {
         // form-sheet card on iPad
         .fullScreenCover (isPresented: $showBrowser) {
             if #available(iOS 17.0, *) {
-                SocksBrowserView (localPort: forward.localPort)
+                if forward.kind == .local {
+                    SocksBrowserView (localPort: forward.localPort,
+                                      startURL: "http://127.0.0.1:\(forward.localPort)",
+                                      useSocksProxy: false)
+                } else {
+                    SocksBrowserView (localPort: forward.localPort)
+                }
+            }
+        }
+    }
+
+    private var localHttpUrl: URL? {
+        URL (string: "http://127.0.0.1:\(forward.localPort)")
+    }
+
+    private var localChromeUrl: URL? {
+        URL (string: "googlechrome://127.0.0.1:\(forward.localPort)")
+    }
+
+    private var hasChrome: Bool {
+        guard let probe = URL (string: "googlechrome://") else { return false }
+        return UIApplication.shared.canOpenURL (probe)
+    }
+
+    @ViewBuilder
+    private var localOpenControl: some View {
+        if hasChrome {
+            Menu {
+                if let chromeUrl = localChromeUrl {
+                    Button {
+                        UIApplication.shared.open (chromeUrl)
+                    } label: {
+                        Label ("Open in Chrome", systemImage: "globe")
+                    }
+                }
+                if let httpUrl = localHttpUrl {
+                    Button {
+                        UIApplication.shared.open (httpUrl)
+                    } label: {
+                        Label ("Open in Safari", systemImage: "safari")
+                    }
+                    Button {
+                        UIPasteboard.general.string = httpUrl.absoluteString
+                    } label: {
+                        Label ("Copy URL", systemImage: "doc.on.doc")
+                    }
+                }
+            } label: {
+                Image (systemName: "arrow.up.forward.app")
+            }
+            .buttonStyle (.bordered)
+            .padding (.trailing, 6)
+            .accessibilityLabel ("Open in External Browser")
+        } else if let httpUrl = localHttpUrl {
+            Button (action: { UIApplication.shared.open (httpUrl) }) {
+                Image (systemName: "arrow.up.forward.app")
+            }
+            .buttonStyle (.bordered)
+            .padding (.trailing, 6)
+            .accessibilityLabel ("Open in Safari")
+            .contextMenu {
+                Button {
+                    UIPasteboard.general.string = httpUrl.absoluteString
+                } label: {
+                    Label ("Copy URL", systemImage: "doc.on.doc")
+                }
             }
         }
     }
